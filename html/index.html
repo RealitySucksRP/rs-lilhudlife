@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RS HUDLife</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Share+Tech+Mono&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/menu-v136.css">
+<link rel="stylesheet" href="css/menu-v137.css">
+</head>
+<body>
+
+<div id="boot-overlay" class="hidden">
+    <div class="boot-fx" id="boot-fx"></div>
+    <div class="boot-carwrap">
+        <img id="boot-vehicle-img" class="boot-vehicle-img hidden-img" src="" alt="">
+    </div>
+    <div class="boot-meta">
+        <div class="boot-name" id="boot-vehicle-name">VEHICLE</div>
+        <div class="boot-name-rule"></div>
+        <div class="boot-credit">PROVIDED BY GTA V</div>
+        <div class="boot-specs">
+            <div class="boot-spec"><div class="v" id="boot-stat-speed">---</div><div class="k">Top Spd</div></div>
+            <div class="boot-spec"><div class="v" id="boot-stat-accel">---</div><div class="k">0-60</div></div>
+            <div class="boot-spec"><div class="v" id="boot-class-name">CAR</div><div class="k">Class</div></div>
+        </div>
+    </div>
+</div>
+
+<div id="speedo-container" class="hidden" data-position="bottom-right"></div>
+<div id="status-container" class="hidden" data-position="top-right" data-shape="circle" data-icon-style="vivid"></div>
+
+<div id="money-container" class="hidden">
+    <div class="sp-logo-wrap" id="sp-logo-wrap">
+        <img src="assets/ls_seal.png" alt="" class="sp-seal" id="sp-seal" onerror="this.style.display='none'">
+        <img src="assets/logo.png" alt="" class="sp-logo" id="sp-logo" onerror="this.style.display='none'">
+    </div>
+    <div class="sp-row sp-row-server" id="sp-row-server" data-pill="server">
+        <span class="sp-server-name" id="sp-server-name">REALITY SUCKS RP</span>
+    </div>
+    <div class="sp-row sp-row-identity" id="sp-row-identity" data-pill="id">
+        <span class="sp-player-name" id="sp-player-name">PLAYER</span>
+        <span class="sp-id-badge" id="sp-id-badge" data-pill="id">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M20 0H4C1.8 0 0 1.8 0 4v16c0 2.2 1.8 4 4 4h16c2.2 0 4-1.8 4-4V4c0-2.2-1.8-4-4-4zm-8 4c2.2 0 4 1.8 4 4s-1.8 4-4 4-4-1.8-4-4 1.8-4 4-4zm8 16H4v-1c0-2.7 5.3-4 8-4s8 1.3 8 4v1z"/></svg>
+            <span id="sp-id-val">0</span>
+        </span>
+    </div>
+    <div class="sp-row sp-row-money">
+        <span class="sp-money sp-cash" id="sp-cash" data-pill="cash">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+            <span id="sp-cash-val">$0</span>
+        </span>
+        <span class="sp-sep">|</span>
+        <span class="sp-money sp-bank" id="sp-bank" data-pill="bank">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M11.5 1L2 6v2h19V6m-5 4v7h3v-7M2 20v2h19v-2m-12-4v7h3v-7m-7-3v7h3v-7H4z"/></svg>
+            <span id="sp-bank-val">$0</span>
+        </span>
+    </div>
+    <div class="sp-row sp-row-job" id="sp-row-job" data-pill="job">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M20 6h-2.18c.07-.44.18-.88.18-1.3C18 2.57 15.86 1 13.5 1c-1.24 0-2.35.56-3.16 1.44L10 2.75l-.34-.31C8.85 1.56 7.74 1 6.5 1 4.14 1 2 2.57 2 4.7c0 .42.11.86.18 1.3H0v14h24V6h-4zm-7.5-3.5c1.07 0 1.5.57 1.5 1.2 0 .41-.17.8-.44 1.1L10.5 7.42l-3.12-2.7c-.26-.3-.38-.69-.38-1.02 0-.63.43-1.2 1.5-1.2.67 0 1.28.43 1.57 1.05.16.33.45.55.83.55s.67-.22.83-.55c.29-.62.9-1.05 1.57-1.05zM22 18H2v-9.3l8 6.92 2-1.74 2 1.74 8-6.92V18z"/></svg>
+        <span id="sp-job-val">UNEMPLOYED</span>
+        <span class="sp-grade" id="sp-grade"></span>
+    </div>
+    <div class="sp-row sp-row-voice" id="sp-row-voice" data-pill="voice" data-voice-state="ready" data-voice-level="normal">
+        <span class="sp-voice-icon" aria-hidden="true">
+            <svg class="sp-voice-mic-base" viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21H8v2h8v-2h-3v-3.08A7 7 0 0 0 19 11h-2Z"/></svg>
+            <span class="sp-voice-vu-fill">
+                <svg viewBox="0 0 24 24" width="13" height="13">
+                    <defs><linearGradient id="sp-voice-vu-gradient" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#35ff9d"/><stop offset=".68" stop-color="#35ff9d"/><stop offset=".84" stop-color="#ffe45f"/><stop offset="1" stop-color="#ff496f"/></linearGradient></defs>
+                    <path fill="url(#sp-voice-vu-gradient)" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21H8v2h8v-2h-3v-3.08A7 7 0 0 0 19 11h-2Z"/>
+                </svg>
+            </span>
+            <i class="sp-voice-dot"></i>
+        </span>
+        <span class="sp-voice-copy">
+            <strong id="sp-voice-state">MIC READY</strong>
+            <span><b id="sp-voice-level">NORMAL</b><i id="sp-voice-distance">7M</i></span>
+        </span>
+        <span class="sp-voice-meter" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+    </div>
+</div>
+
+
+
+<div id="menu-overlay" class="hidden" data-active-tab="display">
+    <div class="menu-bg-fog"></div>
+    <div class="menu-bg-particles" id="menu-particles"></div>
+
+    <div class="menu-container zmenu-shell z11-shell">
+        <div class="z11-frame-lines" aria-hidden="true"></div>
+
+        <header class="zmenu-topbar z11-topbar">
+            <div class="zmenu-brand z11-brand">
+                <div class="zmenu-brand-title" id="menu-version-title"><span class="zbrand-pink">RS HUDLIFE</span><span class="zbrand-cyan">HUD SYSTEM</span></div>
+                <div class="zmenu-brand-sub">FIVEM™ RESOURCE</div>
+            </div>
+
+            <div class="z11-heartbeat" aria-hidden="true">
+                <span class="z11-pulse-line"></span>
+                <span class="z11-heart">♥</span>
+                <span class="z11-pulse-line right"></span>
+            </div>
+
+            <div class="zmenu-top-actions z11-top-actions">
+                <div class="zmenu-status-pill z11-status-pill">
+                    <span class="z11-status-label">SYSTEM STATUS</span>
+                    <span class="z11-status-value"><span class="menu-status-dot"></span> ONLINE</span>
+                </div>
+                <div class="zmenu-profile-pill z11-profile-pill">
+                    <span>PROFILE</span>
+                    <strong>DEFAULT</strong>
+                </div>
+                <button class="menu-close-btn z11-close" id="menu-close-btn" aria-label="Close">✕</button>
+            </div>
+        </header>
+
+        <div class="menu-content zmenu-content z11-content">
+            <nav class="menu-sidebar zmenu-sidebar z11-sidebar">
+                <button class="menu-nav-btn active" data-tab="display"><span class="menu-nav-icon">⌂</span><span class="znav-text"><b>DASHBOARD</b><i>Overview &amp; Status</i></span></button>
+                <button class="menu-nav-btn" data-tab="status"><span class="menu-nav-icon">♡</span><span class="znav-text"><b>SURVIVAL HUD</b><i>Health, Armor &amp; Needs</i></span></button>
+                <button class="menu-nav-btn" data-tab="speedo"><span class="menu-nav-icon">◴</span><span class="znav-text"><b>SPEEDOMETER</b><i>Speed &amp; Vehicle Info</i></span></button>
+                <button class="menu-nav-btn" data-tab="vehicle"><span class="menu-nav-icon">▰</span><span class="znav-text"><b>VEHICLE HUD</b><i>Vehicle Features</i></span></button>
+                <button class="menu-nav-btn" data-tab="nos"><span class="menu-nav-icon">♨</span><span class="znav-text"><b>NOS</b><i>Boost Configuration</i></span></button>
+                <button class="menu-nav-btn" data-tab="colors"><span class="menu-nav-icon">◉</span><span class="znav-text"><b>COLORS</b><i>Neon &amp; Theme Colors</i></span></button>
+                <button class="menu-nav-btn" data-tab="layout"><span class="menu-nav-icon">▦</span><span class="znav-text"><b>LAYOUT</b><i>Position &amp; Scale</i></span></button>
+                <button class="menu-nav-btn" data-tab="money"><span class="menu-nav-icon">●</span><span class="znav-text"><b>PLAYER HUD</b><i>Money, ID &amp; Job</i></span></button>
+                <button class="menu-nav-btn" data-tab="system"><span class="menu-nav-icon">⚙</span><span class="znav-text"><b>SETTINGS</b><i>General Settings</i></span></button>
+
+                <div class="zmenu-sidebar-footer z11-mode-card">
+                    <div class="z11-mode-icon">☣</div>
+                    <div>
+                        <div class="zmode-label">ZOMBIE MODE</div>
+                        <div class="zmode-state">ACTIVE</div>
+                        <div class="zmode-sub">Survive. Adapt. Evolve.</div>
+                    </div>
+                </div>
+            </nav>
+
+            <main class="zmenu-main-grid z11-main-grid">
+                <section class="menu-body zmenu-center z11-center">
+                    <div class="menu-tab active z11-tab" data-tab-body="display">
+                        <div class="menu-section zmenu-card z11-card span-6">
+                            <div class="menu-section-title">HUD OVERVIEW</div>
+                            <div class="z11-power-row">
+                                <div class="z11-power-icon">⏻</div>
+                                <div class="z11-power-copy"><strong>HUD ENABLED</strong><small>Enable or disable the entire HUD system.</small></div>
+                                <label class="menu-toggle"><input type="checkbox" id="menu-hud-enabled" checked><span class="menu-toggle-slider"></span></label>
+                            </div>
+                        </div>
+
+                        <div class="menu-section zmenu-card z11-card span-6">
+                            <div class="menu-section-title">ICON LAYOUT</div>
+                            <div class="zmenu-note-sm">Choose how HUD icons are arranged.</div>
+                            <div class="menu-option-grid z11-layout-options">
+                                <button class="menu-opt-btn z11-layout-btn active" data-setting="iconLayout" data-value="horizontal"><span class="layout-glyph horizontal"><i></i><i></i><i></i></span><b>HORIZONTAL</b></button>
+                                <button class="menu-opt-btn z11-layout-btn" data-setting="iconLayout" data-value="stacked"><span class="layout-glyph stacked"><i></i><i></i><i></i></span><b>STACKED</b></button>
+                                <button class="menu-opt-btn z11-layout-btn" data-setting="iconLayout" data-value="compact"><span class="layout-glyph compact"><i></i><i></i><i></i></span><b>COMPACT</b></button>
+                            </div>
+                        </div>
+
+                        <div class="menu-section zmenu-card z11-card span-12">
+                            <div class="menu-section-title">DISPLAY ELEMENTS</div>
+                            <div class="z11-display-grid">
+                                <div class="menu-toggle-row zel"><span class="zel-i hp">♥</span><span class="zel-t"><b>HEALTH</b><i>Show health bar &amp; value</i></span><label class="menu-toggle"><input type="checkbox" id="menu-ring-health" checked><span class="menu-toggle-slider"></span></label></div>
+                                <div class="menu-toggle-row zel"><span class="zel-i ox">≋</span><span class="zel-t"><b>UNDERWATER ICON</b><i>Show oxygen while swimming</i></span><label class="menu-toggle"><input type="checkbox" id="menu-ring-oxygen"><span class="menu-toggle-slider"></span></label></div>
+                                <div class="menu-toggle-row zel"><span class="zel-i ar">⛊</span><span class="zel-t"><b>ARMOR</b><i>Show armor bar &amp; value</i></span><label class="menu-toggle"><input type="checkbox" id="menu-ring-armor" checked><span class="menu-toggle-slider"></span></label></div>
+                                <div class="menu-toggle-row zel"><span class="zel-i dmg">✦</span><span class="zel-t"><b>LOW-VALUE PULSE</b><i>Flash critical status values</i></span><label class="menu-toggle"><input type="checkbox" id="menu-status-pulse" checked><span class="menu-toggle-slider"></span></label></div>
+                                <div class="menu-toggle-row zel"><span class="zel-i st">⚡</span><span class="zel-t"><b>STAMINA</b><i>Show stamina bar &amp; value</i></span><label class="menu-toggle"><input type="checkbox" id="menu-ring-stamina" checked><span class="menu-toggle-slider"></span></label></div>
+                                <div class="menu-toggle-row zel"><span class="zel-i voice">▥</span><span class="zel-t"><b>STATUS GLOW</b><i>Enable neon ring glow</i></span><label class="menu-toggle"><input type="checkbox" id="menu-status-glow" checked><span class="menu-toggle-slider"></span></label></div>
+                                <div class="menu-toggle-row zel"><span class="zel-i hu">🍴</span><span class="zel-t"><b>HUNGER</b><i>Show hunger bar &amp; value</i></span><label class="menu-toggle"><input type="checkbox" id="menu-ring-hunger" checked><span class="menu-toggle-slider"></span></label></div>
+                                <div class="menu-toggle-row zel"><span class="zel-i debuff">☠</span><span class="zel-t"><b>FADE WHEN FULL</b><i>Hide full status rings</i></span><label class="menu-toggle"><input type="checkbox" id="menu-status-fade-full"><span class="menu-toggle-slider"></span></label></div>
+                                <div class="menu-toggle-row zel"><span class="zel-i th">●</span><span class="zel-t"><b>THIRST</b><i>Show thirst bar &amp; value</i></span><label class="menu-toggle"><input type="checkbox" id="menu-ring-thirst" checked><span class="menu-toggle-slider"></span></label></div>
+                                <div class="menu-toggle-row zel"><span class="zel-i map">⌖</span><span class="zel-t"><b>PLAYER INFO HUD</b><i>Show cash, bank, ID &amp; job</i></span><label class="menu-toggle"><input type="checkbox" id="menu-money-enabled" checked><span class="menu-toggle-slider"></span></label></div>
+                            </div>
+                        </div>
+
+                        <div class="menu-section zmenu-card z11-card span-12">
+                            <div class="menu-section-title">SPEEDOMETER STYLE</div>
+                            <div class="zmenu-note-sm">Choose your speedometer design. More styles are available in the Speedometer tab.</div>
+                            <div class="z11-style-grid">
+                                <button class="menu-opt-btn z11-style-card active" data-setting="speedoStyle" data-value="cluster"><span class="speed-thumb cyber"><i>000</i><em>N</em></span><b>CYBER ARC</b></button>
+                                <button class="menu-opt-btn z11-style-card" data-setting="speedoStyle" data-value="survival"><span class="speed-thumb core"><i></i></span><b>DIGITAL CORE</b></button>
+                                <button class="menu-opt-btn z11-style-card" data-setting="speedoStyle" data-value="neon"><span class="speed-thumb ring"><i></i></span><b>NEON RING</b></button>
+                                <button class="menu-opt-btn z11-style-card" data-setting="speedoStyle" data-value="minimal"><span class="speed-thumb minimal"><i>000</i><em>N</em></span><b>MINIMAL</b></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="menu-tab z11-tab" data-tab-body="status">
+                        <div class="menu-section zmenu-card z11-card span-6">
+                            <div class="menu-section-title">SURVIVAL STATUS</div>
+                            <div class="menu-toggle-row"><span>SHOW STATUS RINGS</span><label class="menu-toggle"><input type="checkbox" id="menu-status-enabled" checked><span class="menu-toggle-slider"></span></label></div>
+                            <div class="menu-toggle-row"><span>DYNAMIC COLOR</span><label class="menu-toggle"><input type="checkbox" id="menu-status-dynamic"><span class="menu-toggle-slider"></span></label></div>
+                        </div>
+                        <div class="menu-section zmenu-card z11-card span-6">
+                            <div class="menu-section-title">RING OPACITY</div>
+                            <div class="menu-slider-wrap"><span class="zlabel">OPACITY</span><input type="range" id="menu-status-opacity" class="menu-slider" min="20" max="100" value="100"><div class="menu-slider-value" id="menu-status-opacity-value">100%</div></div>
+                        </div>
+                        <div class="menu-section zmenu-card z11-card span-12">
+                            <div class="menu-section-title">SHAPE &amp; FINISH</div>
+                            <div class="menu-section-subtitle">STATUS SHAPE</div>
+                            <div class="menu-option-grid menu-option-grid-4">
+                                <button class="menu-opt-btn active" data-setting="statusShape" data-value="circle">CIRCLE</button>
+                                <button class="menu-opt-btn" data-setting="statusShape" data-value="diamond">DIAMOND</button>
+                                <button class="menu-opt-btn" data-setting="statusShape" data-value="hexagon">HEXAGON</button>
+                                <button class="menu-opt-btn" data-setting="statusShape" data-value="square">SQUARE</button>
+                            </div>
+                            <div class="menu-section-subtitle">ICON FINISH</div>
+                            <div class="menu-option-grid menu-option-grid-4">
+                                <button class="menu-opt-btn" data-setting="statusIconStyle" data-value="crystal">3D CRYSTAL</button>
+                                <button class="menu-opt-btn" data-setting="statusIconStyle" data-value="neon">NEON GLASS</button>
+                                <button class="menu-opt-btn" data-setting="statusIconStyle" data-value="mono">CLEAN MONO</button>
+                                <button class="menu-opt-btn active" data-setting="statusIconStyle" data-value="vivid">3D VIVID</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="menu-tab z11-tab" data-tab-body="speedo">
+                        <div class="menu-section zmenu-card z11-card span-6">
+                            <div class="menu-section-title">SPEED UNIT</div>
+                            <div class="menu-option-grid menu-option-grid-2">
+                                <button class="menu-opt-btn active" data-setting="unit" data-value="MPH">MPH</button>
+                                <button class="menu-opt-btn" data-setting="unit" data-value="KMH">KM/H</button>
+                            </div>
+                        </div>
+                        <div class="menu-section zmenu-card z11-card span-6">
+                            <div class="menu-section-title">SPEEDOMETER SIZE</div>
+                            <div class="menu-slider-wrap"><span class="zlabel">SCALE</span><input type="range" id="menu-scale-slider" class="menu-slider" min="75" max="110" value="88"><div class="menu-slider-value" id="menu-scale-value">100%</div></div>
+                            <div class="menu-toggle-row"><span>MINIMIZED MODE</span><label class="menu-toggle"><input type="checkbox" id="menu-speedo-minimized"><span class="menu-toggle-slider"></span></label></div>
+                        </div>
+                        <div class="menu-section zmenu-card z11-card span-12">
+                            <div class="menu-section-title">ALL SPEEDOMETER STYLES</div>
+                            <div class="menu-option-grid z11-all-style-grid">
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="halo">HALO LOGO</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="vehicle">VEHICLE HEALTH</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="apex">APEX RACE</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="classic">CLASSIC</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="neon">NEON DIGITAL</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="minimal">MINIMAL</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="turbo">TURBO RPM</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="volt">VOLT EV</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="survival">SURVIVAL ARC</button>
+                                <button class="menu-opt-btn active" data-setting="speedoStyle" data-value="cluster">SURVIVAL CLUSTER</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="menu-tab z11-tab" data-tab-body="vehicle">
+                        <div class="menu-section zmenu-card z11-card span-6">
+                            <div class="menu-section-title">BOOT SEQUENCE</div>
+                            <div class="menu-toggle-row"><span>PLAY ON VEHICLE CHANGE</span><label class="menu-toggle"><input type="checkbox" id="menu-boot-toggle" checked><span class="menu-toggle-slider"></span></label></div>
+                            <button class="menu-action-btn" id="menu-replay-boot">REPLAY BOOT SEQUENCE</button>
+                        </div>
+                        <div class="menu-section zmenu-card z11-card span-6">
+                            <div class="menu-section-title">VEHICLE READOUTS</div>
+                            <p class="zmenu-note">The Vehicle Health speedometer shows live tire, glass, door, fuel, engine and body condition.</p>
+                        </div>
+                        <div class="menu-section zmenu-card z11-card span-12">
+                            <div class="menu-section-title">DRIVER SYSTEM</div>
+                            <p class="zmenu-note">Vehicle HUD settings share the main speedometer position, scale and unit controls. Use Layout for placement and Speedometer for style.</p>
+                        </div>
+                    </div>
+
+                    <div class="menu-tab z11-tab" data-tab-body="nos">
+                        <div class="menu-section zmenu-card z11-card span-12">
+                            <div class="menu-section-title">NOS BOOST SYSTEM</div>
+                            <p class="zmenu-note">The NOS controls remain visible in the right-side control module so you can change display style and warning level while reviewing every tab.</p>
+                        </div>
+                        <div class="menu-section zmenu-card z11-card span-6">
+                            <div class="menu-section-title">INTEGRATION</div>
+                            <p class="zmenu-note">HUDLife reads the active NOS state from RS LS Customs and shows availability, cooldown and warning information.</p>
+                        </div>
+                        <div class="menu-section zmenu-card z11-card span-6">
+                            <div class="menu-section-title">DISPLAY BEHAVIOR</div>
+                            <p class="zmenu-note">Enable Always Show in the NOS module when you want the bottle visible even if the current vehicle does not report NOS.</p>
+                        </div>
+                    </div>
+
+                    <div class="menu-tab z11-tab" data-tab-body="colors">
+                        <div class="menu-section zmenu-card z11-card span-6">
+                            <div class="menu-section-title">THEME COLORS</div>
+                            <p class="zmenu-note">Server-defined ring colors come from <b>Config.Status.Colors</b>. Dynamic Color can override them based on status value.</p>
+                            <div class="z11-swatches"><span class="cyan"></span><span class="pink"></span><span class="amber"></span><span class="red"></span></div>
+                        </div>
+                        <div class="menu-section zmenu-card z11-card span-6">
+                            <div class="menu-section-title">VISUAL EFFECTS</div>
+                            <div class="z11-system-badge"><span>LIVE STATUS GRADIENT</span><strong>AVAILABLE</strong></div>
+                            <p class="zmenu-note z11-mirror-note">Use the Survival HUD tab to turn Dynamic Color on or off.</p>
+                        </div>
+                        <div class="menu-section zmenu-card z11-card span-12">
+                            <div class="menu-section-title">NEON THEME</div>
+                            <p class="zmenu-note">The menu frame uses cyan and magenta as the fixed interface identity while your in-game status rings remain configurable by the server owner.</p>
+                        </div>
+                    </div>
+
+                    <div class="menu-tab z11-tab" data-tab-body="layout">
+                        <div class="menu-section zmenu-card z11-card span-12 z11-layout-intro">
+                            <div class="zpreview-head"><div class="menu-section-title">LIVE PLACEMENT WORKSPACE</div><div class="zpreview-tag">GAMEPLAY VISIBLE</div></div>
+                            <p class="zmenu-note">The real HUD behind this panel is the preview. The menu shifts right on this tab so the minimap and lower-left safe zone remain visible.</p>
+                        </div>
+
+                        <div class="menu-section zmenu-card z11-card span-12 z11-preset-card">
+                            <div class="menu-section-title">MINIMAP PLACEMENT PRESETS</div>
+                            <div class="z11-preset-grid">
+                                <button class="menu-opt-btn z11-preset-btn" data-layout-preset="above">ABOVE MINIMAP</button>
+                                <button class="menu-opt-btn z11-preset-btn" data-layout-preset="left">LEFT SIDE</button>
+                                <button class="menu-opt-btn z11-preset-btn" data-layout-preset="right">RIGHT SIDE</button>
+                                <button class="menu-opt-btn z11-preset-btn" data-layout-preset="compact">COMPACT ABOVE</button>
+                                <button class="menu-opt-btn z11-preset-btn reset" data-layout-preset="reset">RESET POSITIONS</button>
+                            </div>
+                        </div>
+
+                        <div class="menu-section zmenu-card z11-card span-6 z11-layout-scale-card">
+                            <div class="menu-section-title">ELEMENT SCALE</div>
+                            <div class="menu-slider-wrap"><span class="zlabel">SPEEDO</span><input type="range" id="menu-layout-speedo-scale" class="menu-slider" min="75" max="110" value="88"><div class="menu-slider-value" id="menu-layout-speedo-scale-value">88%</div></div>
+                            <div class="menu-slider-wrap"><span class="zlabel">ICONS</span><input type="range" id="menu-status-scale" class="menu-slider" min="70" max="105" value="88"><div class="menu-slider-value" id="menu-status-scale-value">88%</div></div>
+                            <div class="menu-slider-wrap"><span class="zlabel">MONEY</span><input type="range" id="menu-money-scale" class="menu-slider" min="75" max="110" value="100"><div class="menu-slider-value" id="menu-money-scale-value">100%</div></div>
+                        </div>
+
+                        <div class="menu-section zmenu-card z11-card span-6 z11-layout-mode-card">
+                            <div class="menu-section-title">ICON ARRANGEMENT</div>
+                            <div class="menu-option-grid z11-layout-options">
+                                <button class="menu-opt-btn z11-layout-btn active" data-setting="iconLayout" data-value="horizontal"><span class="layout-glyph horizontal"><i></i><i></i><i></i></span><b>HORIZONTAL</b></button>
+                                <button class="menu-opt-btn z11-layout-btn" data-setting="iconLayout" data-value="stacked"><span class="layout-glyph stacked"><i></i><i></i><i></i></span><b>STACKED</b></button>
+                                <button class="menu-opt-btn z11-layout-btn" data-setting="iconLayout" data-value="compact"><span class="layout-glyph compact"><i></i><i></i><i></i></span><b>COMPACT</b></button>
+                            </div>
+                            <p class="zmenu-note z11-layout-note">Horizontal fits above the minimap. Stacked fits beside it. Compact uses a tight two-row cluster.</p>
+                        </div>
+                    </div>
+
+                    <div class="menu-tab z11-tab" data-tab-body="money">
+                        <div class="menu-section zmenu-card z11-card span-6">
+                            <div class="menu-section-title">PLAYER INFO HUD</div>
+                            <p class="zmenu-note">The dashboard toggle controls whether this module is visible. Choose the visual style below.</p>
+                            <div class="menu-option-grid menu-option-grid-2">
+                                <button class="menu-opt-btn active" data-setting="moneyStyle" data-value="glass">GLASS PANEL</button>
+                                <button class="menu-opt-btn" data-setting="moneyStyle" data-value="clean">CLEAN TEXT</button>
+                                <button class="menu-opt-btn" data-setting="moneyStyle" data-value="neon">NEON EDGE</button>
+                                <button class="menu-opt-btn" data-setting="moneyStyle" data-value="executive">EXECUTIVE</button>
+                                <button class="menu-opt-btn" data-setting="moneyStyle" data-value="compact">COMPACT STRIP</button>
+                            </div>
+                        </div>
+                        <div class="menu-section zmenu-card z11-card span-6">
+                            <div class="menu-section-title">VISIBLE PILLS</div>
+                            <div class="menu-toggle-row"><span>SERVER NAME</span><label class="menu-toggle"><input type="checkbox" id="menu-pill-server" checked><span class="menu-toggle-slider"></span></label></div>
+                            <div class="menu-toggle-row"><span>CASH</span><label class="menu-toggle"><input type="checkbox" id="menu-pill-cash" checked><span class="menu-toggle-slider"></span></label></div>
+                            <div class="menu-toggle-row"><span>BANK</span><label class="menu-toggle"><input type="checkbox" id="menu-pill-bank" checked><span class="menu-toggle-slider"></span></label></div>
+                            <div class="menu-toggle-row"><span>PLAYER / ID</span><label class="menu-toggle"><input type="checkbox" id="menu-pill-id" checked><span class="menu-toggle-slider"></span></label></div>
+                            <div class="menu-toggle-row"><span>JOB / RANK</span><label class="menu-toggle"><input type="checkbox" id="menu-pill-job" checked><span class="menu-toggle-slider"></span></label></div>
+                            <div class="menu-toggle-row"><span>MIC / VOICE</span><label class="menu-toggle"><input type="checkbox" id="menu-pill-voice" checked><span class="menu-toggle-slider"></span></label></div>
+                        </div>
+                    </div>
+
+                    <div class="menu-tab z11-tab" data-tab-body="system">
+                        <div class="menu-section zmenu-card z11-card span-6">
+                            <div class="menu-section-title">AUDIO CONTROL</div>
+                            <div class="menu-toggle-row"><span>SOUND EFFECTS</span><label class="menu-toggle"><input type="checkbox" id="menu-sound-toggle" checked><span class="menu-toggle-slider"></span></label></div>
+                            <div class="menu-slider-wrap"><span class="zlabel">VOLUME</span><input type="range" id="menu-volume-slider" class="menu-slider" min="0" max="100" value="50"><div class="menu-slider-value" id="menu-volume-value">50%</div></div>
+                        </div>
+                        <div class="menu-section zmenu-card z11-card span-6">
+                            <div class="menu-section-title">SYSTEM INFO</div>
+                            <div class="menu-info-row"><span>VERSION</span><span id="menu-info-version">1.3.7</span></div>
+                            <div class="menu-info-row"><span>RESOURCE</span><span id="menu-info-resource">rs-lilhudlife</span></div>
+                            <div class="menu-info-row"><span>AUTHOR</span><span>REALITY SUCKS RP</span></div>
+                        </div>
+                        <div class="menu-section zmenu-card z11-card span-12">
+                            <div class="menu-section-title">RESET CONTROL</div>
+                            <p class="zmenu-note">Restore the resource defaults for HUD layout, status rings, money, audio, NOS and speedometer settings.</p>
+                            <button class="menu-action-btn" id="menu-reset">RESET TO DEFAULT</button>
+                        </div>
+                    </div>
+                </section>
+
+                <aside class="zmenu-right z11-right">
+                    <div class="menu-section zmenu-card z11-card z11-preview-card z11-live-card">
+                        <div class="zpreview-head"><div class="menu-section-title">LIVE HUD WORKSPACE</div><div class="zpreview-tag">LIVE IN GAME</div></div>
+                        <div class="z11-live-stage">
+                            <div class="z11-live-mark"><span>◎</span><div><strong>THE GAME HUD IS THE PREVIEW</strong><small>Look behind this menu to see every change immediately.</small></div></div>
+                            <div class="z11-live-readouts">
+                                <div><span>SPEEDOMETER</span><strong id="zlive-speedo-style">SURVIVAL CLUSTER</strong></div>
+                                <div><span>ICON LAYOUT</span><strong id="zlive-icon-layout">HORIZONTAL</strong></div>
+                                <div><span>SPEED UNIT</span><strong id="zlive-speed-unit">MPH</strong></div>
+                                <div><span>NOS DISPLAY</span><strong id="zlive-nos-display">ENABLED</strong></div>
+                            </div>
+                            <button class="z11-hud-peek" id="menu-hud-peek" type="button">HOLD TO VIEW HUD</button>
+                        </div>
+                    </div>
+
+                    <div class="menu-section zmenu-card z11-card z11-nos-card">
+                        <div class="menu-section-title">NOS STATUS</div>
+                        <div class="z11-nos-grid">
+                            <div class="z11-nos-bottle-wrap"><img src="assets/icons/nos-bottle-v128.png" alt="NOS"></div>
+                            <div class="z11-nos-controls">
+                                <div class="z11-control-line"><div><strong>ENABLE NOS DISPLAY</strong><small>Show NOS status &amp; availability</small></div><label class="menu-toggle"><input type="checkbox" id="menu-nos-enabled" checked><span class="menu-toggle-slider"></span></label></div>
+                                <div class="z11-control-line stacked"><div><strong>NOS STYLE</strong><small>Choose NOS display style</small></div><div class="menu-option-grid z11-nos-style-buttons"><button class="menu-opt-btn active" data-setting="nosStyle" data-value="bottle">BOTTLE</button><button class="menu-opt-btn" data-setting="nosStyle" data-value="neon">NEON</button><button class="menu-opt-btn" data-setting="nosStyle" data-value="mono">MONO</button></div></div>
+                                <div class="z11-control-line stacked"><div><strong>LOW NOS WARNING</strong><small>Alert when NOS is low</small></div><div class="menu-slider-wrap"><span class="zlabel">WARN</span><input type="range" id="menu-nos-warning" class="menu-slider" min="0" max="90" value="20"><div class="menu-slider-value" id="menu-nos-warning-value">20%</div></div></div>
+                                <div class="z11-control-line"><div><strong>ALWAYS SHOW</strong><small>Visible without a bottle</small></div><label class="menu-toggle"><input type="checkbox" id="menu-ring-nos"><span class="menu-toggle-slider"></span></label></div>
+                            </div>
+                        </div>
+                        <div class="z11-nos-status-row"><span>DISPLAY STATE</span><strong id="znos-status" class="active">DISPLAY ON</strong><span class="z11-hidden-nos-values"><i id="znos-display">Enabled</i><i id="znos-style">Classic Bottle</i><i id="znos-warning">20%</i></span></div>
+                    </div>
+
+                    <div class="menu-section zmenu-card z11-card z11-map-card">
+                        <div class="zpreview-head"><div class="menu-section-title">SCREEN POSITION</div><div class="zpreview-tag" id="zmap-live">DRAG TO PLACE</div></div>
+                        <div class="zmenu-note-sm">Drag a block to move the live HUD element.</div>
+                        <div class="zmap" id="zmap"><div class="zmap-mini">MINIMAP</div><div class="zmap-chip zc-speedo" data-el="speedo" id="zmap-speedo">SPEEDO</div><div class="zmap-chip zc-status" data-el="status" id="zmap-status">ICONS</div><div class="zmap-chip zc-money" data-el="money" id="zmap-money">MONEY</div></div>
+                        <div class="zmap-readout" id="zmap-readout">Drag a block, or use the sliders below.</div>
+                        <div class="zmap-sliders">
+                            <div class="menu-slider-wrap"><span class="zlabel">SPD X</span><input type="range" id="menu-speedo-x" class="menu-slider" min="0" max="95" value="20"><div class="menu-slider-value" id="menu-speedo-x-value">20%</div></div>
+                            <div class="menu-slider-wrap"><span class="zlabel">SPD Y</span><input type="range" id="menu-speedo-y" class="menu-slider" min="0" max="95" value="4"><div class="menu-slider-value" id="menu-speedo-y-value">4%</div></div>
+                            <div class="menu-slider-wrap"><span class="zlabel">ICON X</span><input type="range" id="menu-status-x" class="menu-slider" min="0" max="95" value="38"><div class="menu-slider-value" id="menu-status-x-value">38%</div></div>
+                            <div class="menu-slider-wrap"><span class="zlabel">ICON Y</span><input type="range" id="menu-status-y" class="menu-slider" min="0" max="95" value="4"><div class="menu-slider-value" id="menu-status-y-value">4%</div></div>
+                            <div class="menu-slider-wrap"><span class="zlabel">CASH X</span><input type="range" id="menu-money-x" class="menu-slider" min="0" max="95" value="1"><div class="menu-slider-value" id="menu-money-x-value">1%</div></div>
+                            <div class="menu-slider-wrap"><span class="zlabel">CASH Y</span><input type="range" id="menu-money-y" class="menu-slider" min="0" max="95" value="1"><div class="menu-slider-value" id="menu-money-y-value">1%</div></div>
+                        </div>
+                    </div>
+                </aside>
+            </main>
+        </div>
+
+        <footer class="menu-footer zmenu-footer z11-footer">
+            <div class="zfooter-copy">ULTIMATE SURVIVAL. MAXIMUM CONTROL.</div>
+            <div class="zfooter-actions"><button class="menu-btn menu-btn-secondary" id="menu-reset-footer">↺ RESET TO DEFAULT</button><button class="menu-btn menu-btn-primary" id="menu-save">✓ SAVE CHANGES</button></div>
+        </footer>
+    </div>
+</div>
+
+<div id="audio-pool" style="display:none"></div>
+
+  <!-- Enhanced NUI scale shim; must load before app scripts. -->
+<script src="rs-uiscale.js"></script>
+<script src="js/boot.js"></script>
+<script src="js/speedo.js"></script>
+<script src="js/status.js"></script>
+<script src="js/money.js"></script>
+<script src="js/menu.js"></script>
+<script src="js/app.js"></script>
+<script>
+// allow the footer reset button to forward to the main reset handler already used by menu.js
+window.addEventListener('DOMContentLoaded', function () {
+    var footerReset = document.getElementById('menu-reset-footer');
+    var primaryReset = document.getElementById('menu-reset');
+    if (footerReset && primaryReset) {
+        footerReset.addEventListener('click', function () { primaryReset.click(); });
+    }
+});
+</script>
+</body>
+</html>

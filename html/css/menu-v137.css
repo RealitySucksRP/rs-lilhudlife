@@ -1,0 +1,373 @@
+/* RS HUDLife v1.3.7 — live placement workspace
+   Loaded after v1.3.6. Preserves the approved Picture 11 deck while
+   removing fullscreen CEF effects that can rasterize transparent NUI as black. */
+
+html, body {
+    background: transparent !important;
+}
+
+#menu-overlay {
+    background: rgba(1, 5, 14, .07) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transition: background .18s ease;
+}
+
+#menu-overlay .menu-bg-fog,
+#menu-overlay .menu-bg-particles {
+    display: none !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+#menu-overlay .menu-container.zmenu-shell.z11-shell {
+    background:
+        linear-gradient(180deg, rgba(7, 12, 28, .955), rgba(3, 8, 19, .955)),
+        radial-gradient(circle at 49% 0%, rgba(255, 58, 183, .10), transparent 34%) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transition: transform .24s ease, opacity .14s ease, filter .14s ease;
+}
+
+/* Layout is a workspace, not a blackout. Keep the minimap side exposed. */
+#menu-overlay[data-active-tab="layout"] {
+    background: rgba(1, 5, 14, .015) !important;
+}
+#menu-overlay[data-active-tab="layout"] .menu-container.zmenu-shell.z11-shell {
+    transform: translateX(clamp(120px, 13vw, 250px));
+}
+
+/* Hold-to-inspect makes the control deck nearly disappear without closing it. */
+#menu-overlay.hud-peek {
+    background: transparent !important;
+}
+#menu-overlay.hud-peek .menu-container.zmenu-shell.z11-shell {
+    opacity: .075 !important;
+    filter: saturate(.65) !important;
+}
+
+/* Replace the misleading fake gauge with an honest live-workspace status card. */
+#menu-overlay .z11-live-card {
+    min-height: 198px !important;
+}
+#menu-overlay .z11-live-stage {
+    min-height: 158px;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid rgba(42, 220, 255, .18);
+    border-radius: 4px;
+    background:
+        radial-gradient(circle at 20% 15%, rgba(42, 220, 255, .08), transparent 44%),
+        linear-gradient(145deg, rgba(5, 12, 27, .82), rgba(10, 6, 22, .76));
+}
+#menu-overlay .z11-live-mark {
+    display: grid;
+    grid-template-columns: 33px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 7px;
+    border-bottom: 1px solid rgba(255, 255, 255, .07);
+}
+#menu-overlay .z11-live-mark > span {
+    width: 31px;
+    height: 31px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(42, 220, 255, .38);
+    border-radius: 50%;
+    color: var(--z11-cyan);
+    font-size: 18px;
+    box-shadow: 0 0 10px rgba(42, 220, 255, .17), inset 0 0 9px rgba(42, 220, 255, .08);
+}
+#menu-overlay .z11-live-mark strong {
+    display: block;
+    color: var(--z11-text);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 7px;
+    letter-spacing: .55px;
+}
+#menu-overlay .z11-live-mark small {
+    display: block;
+    margin-top: 3px;
+    color: var(--z11-muted);
+    font-size: 6px;
+    line-height: 1.35;
+}
+#menu-overlay .z11-live-readouts {
+    display: grid;
+    align-content: center;
+    gap: 5px;
+}
+#menu-overlay .z11-live-readouts > div {
+    min-height: 22px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 7px;
+    padding: 0 7px;
+    border: 1px solid rgba(255, 255, 255, .055);
+    border-radius: 3px;
+    background: rgba(6, 13, 27, .64);
+}
+#menu-overlay .z11-live-readouts span {
+    color: rgba(185, 207, 231, .64);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 5.8px;
+    letter-spacing: .5px;
+}
+#menu-overlay .z11-live-readouts strong {
+    color: var(--z11-cyan-2);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 7px;
+    letter-spacing: .3px;
+    text-shadow: 0 0 7px rgba(42, 220, 255, .28);
+}
+#menu-overlay .z11-hud-peek {
+    height: 27px;
+    border: 1px solid rgba(255, 73, 189, .34);
+    border-radius: 3px;
+    background: linear-gradient(90deg, rgba(255, 73, 189, .12), rgba(42, 220, 255, .10));
+    color: #f3ddff;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 6.5px;
+    font-weight: 800;
+    letter-spacing: .75px;
+    cursor: pointer;
+}
+#menu-overlay .z11-hud-peek:active {
+    border-color: var(--z11-cyan);
+    color: #fff;
+    box-shadow: 0 0 12px rgba(42, 220, 255, .25);
+}
+
+/* Layout tab: practical minimap presets and readable controls. */
+#menu-overlay .z11-layout-intro,
+#menu-overlay .z11-preset-card,
+#menu-overlay .z11-layout-scale-card,
+#menu-overlay .z11-layout-mode-card {
+    padding: 7px 9px !important;
+}
+#menu-overlay .z11-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 5px;
+}
+#menu-overlay .z11-preset-btn {
+    min-height: 31px !important;
+    padding: 4px 5px !important;
+    font-size: 5.8px !important;
+    line-height: 1.2 !important;
+}
+#menu-overlay .z11-preset-btn.reset {
+    border-color: rgba(255, 73, 189, .26) !important;
+    color: #f3d9ff !important;
+}
+#menu-overlay .z11-layout-scale-card .menu-slider-wrap {
+    min-height: 27px !important;
+}
+#menu-overlay .z11-layout-mode-card .z11-layout-options {
+    margin-top: 3px;
+}
+#menu-overlay .z11-layout-mode-card .z11-layout-btn {
+    min-height: 47px !important;
+}
+#menu-overlay .z11-layout-note {
+    margin-top: 5px !important;
+    line-height: 1.25 !important;
+}
+
+/* More useful position map while the right rail is in layout mode. */
+#menu-overlay .z11-map-card {
+    min-height: 208px !important;
+}
+#menu-overlay .zmap {
+    height: 126px !important;
+}
+#menu-overlay .zmap-mini {
+    width: 58px !important;
+    height: 31px !important;
+    background: rgba(15, 30, 48, .36) !important;
+}
+
+/* Gameplay status layout modes. Dimensions reference the GTA minimap footprint. */
+#status-container {
+    max-width: none;
+    transform-origin: left bottom;
+}
+#status-container[data-layout="horizontal"] {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 8px;
+    width: max-content;
+}
+#status-container[data-layout="horizontal"] .rs-ring {
+    min-width: 54px;
+}
+
+#status-container[data-layout="stacked"] {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 4px;
+    width: max-content;
+}
+#status-container[data-layout="stacked"] .rs-ring {
+    min-width: 78px;
+    min-height: 39px;
+    display: grid;
+    grid-template-columns: 38px 31px;
+    grid-template-rows: 18px 15px;
+    align-items: center;
+    justify-items: start;
+    column-gap: 5px;
+}
+#status-container[data-layout="stacked"] .rs-ring-shape {
+    grid-row: 1 / 3;
+    width: 38px;
+    height: 38px;
+}
+#status-container[data-layout="stacked"] .rs-ring-value {
+    margin: 0;
+    align-self: end;
+    font-size: 10px;
+}
+#status-container[data-layout="stacked"] .rs-ring-label {
+    margin: 0;
+    align-self: start;
+    font-size: 5px;
+    letter-spacing: .75px;
+}
+#status-container[data-layout="stacked"] .rs-ring-icon svg,
+#status-container[data-layout="stacked"] .rs-ring-icon img {
+    width: 16px !important;
+    height: 16px !important;
+}
+
+#status-container[data-layout="compact"] {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 4px 5px;
+    width: 170px;
+}
+#status-container[data-layout="compact"] .rs-ring {
+    min-width: 50px;
+}
+#status-container[data-layout="compact"] .rs-ring-shape {
+    width: 42px;
+    height: 42px;
+}
+#status-container[data-layout="compact"] .rs-ring-value {
+    margin-top: 1px;
+    font-size: 8px;
+}
+#status-container[data-layout="compact"] .rs-ring-label {
+    display: none;
+}
+#status-container[data-layout="compact"] .rs-ring-icon svg,
+#status-container[data-layout="compact"] .rs-ring-icon img {
+    width: 17px !important;
+    height: 17px !important;
+}
+
+@media (max-width: 1366px), (max-height: 760px) {
+    #menu-overlay[data-active-tab="layout"] .menu-container.zmenu-shell.z11-shell {
+        transform: translateX(clamp(70px, 8vw, 140px));
+    }
+    #menu-overlay .z11-preset-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+/* Keep every placement control visible without forcing the player to hunt in a
+   clipped card. The live summary becomes denser on Layout and the six X/Y
+   controls use a two-column grid. */
+#menu-overlay .z11-live-readouts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+#menu-overlay .z11-live-readouts > div {
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+#menu-overlay .z11-live-readouts span,
+#menu-overlay .z11-live-readouts strong {
+    min-width: 0;
+    white-space: nowrap;
+}
+#menu-overlay .z11-live-readouts strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#menu-overlay[data-active-tab="layout"] .z11-right {
+    grid-template-rows: 180px minmax(0, 1fr) !important;
+}
+#menu-overlay[data-active-tab="layout"] .z11-live-card {
+    min-height: 0 !important;
+}
+#menu-overlay[data-active-tab="layout"] .z11-live-stage {
+    min-height: 126px !important;
+    gap: 5px !important;
+    padding: 6px !important;
+}
+#menu-overlay[data-active-tab="layout"] .z11-live-mark {
+    grid-template-columns: 27px minmax(0, 1fr) !important;
+    gap: 6px !important;
+    padding-bottom: 4px !important;
+}
+#menu-overlay[data-active-tab="layout"] .z11-live-mark > span {
+    width: 25px !important;
+    height: 25px !important;
+    font-size: 14px !important;
+}
+#menu-overlay[data-active-tab="layout"] .z11-live-mark small {
+    display: none !important;
+}
+#menu-overlay[data-active-tab="layout"] .z11-live-readouts {
+    gap: 4px !important;
+}
+#menu-overlay[data-active-tab="layout"] .z11-live-readouts > div {
+    min-height: 18px !important;
+    padding: 0 5px !important;
+}
+#menu-overlay[data-active-tab="layout"] .z11-hud-peek {
+    height: 23px !important;
+}
+
+#menu-overlay[data-active-tab="layout"] .z11-map-card {
+    overflow: hidden !important;
+}
+#menu-overlay[data-active-tab="layout"] .zmap {
+    height: 72px !important;
+    min-height: 72px !important;
+    margin: 4px 0 !important;
+}
+#menu-overlay[data-active-tab="layout"] .zmap-readout {
+    min-height: 17px !important;
+    padding: 2px 5px !important;
+    margin-bottom: 3px !important;
+}
+#menu-overlay[data-active-tab="layout"] .zmap-sliders {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    column-gap: 8px !important;
+    row-gap: 0 !important;
+}
+#menu-overlay[data-active-tab="layout"] .zmap-sliders .menu-slider-wrap {
+    min-width: 0 !important;
+    min-height: 20px !important;
+    grid-template-columns: 34px minmax(0, 1fr) 29px !important;
+    gap: 4px !important;
+    padding: 1px 0 !important;
+}
+#menu-overlay[data-active-tab="layout"] .zmap-sliders .zlabel,
+#menu-overlay[data-active-tab="layout"] .zmap-sliders .menu-slider-value {
+    font-size: 5.7px !important;
+}
+#menu-overlay[data-active-tab="layout"] .z11-live-card,
+#menu-overlay[data-active-tab="layout"] .z11-map-card {
+    height: 100% !important;
+    box-sizing: border-box !important;
+}

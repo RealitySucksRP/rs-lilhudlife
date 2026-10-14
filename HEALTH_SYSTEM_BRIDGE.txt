@@ -1,0 +1,139 @@
+RS HUDLife - Universal Health / Status Bridge
+============================================
+Version 1.4.3
+
+PURPOSE
+-------
+HUDLife displays the state owned by the server's real medical/needs system. It
+should not become a second authority for health, hunger, thirst, money, or jobs.
+
+SUPPORTED FRAMEWORK PATHS
+-------------------------
+QBCore
+- Reads player data through QBCore.
+- Listens for QBCore money/job/player-data events.
+- Reads hunger/thirst metadata and common qb-hud needs events.
+
+Qbox / qbx_core
+- Works with the QB compatibility bridge when enabled.
+- Has a native qbx_core player-data fallback when that bridge is disabled.
+- Uses Qbox's documented QBCore-compatible money/job events.
+- Can read Qbox death/last-stand metadata through rs_bridge or qbx_core.
+
+ESX Legacy
+- Uses rs_bridge when present or direct es_extended exports/events otherwise.
+- Reads money/account/job updates from ESX.
+- Can consume esx_status values when enabled in Config.HealthBridge.
+
+NATIVE BASELINE
+---------------
+By default HUDLife can read:
+- GTA/FiveM ped health
+- armor
+- sprint stamina
+- underwater oxygen
+
+Needs such as hunger/thirst should come from the framework/status system that
+actually owns them.
+
+CLIENT EVENT EXAMPLES
+---------------------
+From another client resource:
+
+    TriggerEvent('rs-lilhudlife:client:SetStatus', {
+        health = 90,
+        armor = 25,
+        hunger = 80,
+        thirst = 75,
+        stamina = 95,
+        oxygen = 100
+    })
+
+    TriggerEvent('rs-lilhudlife:client:SetNeeds', 80, 75)
+    TriggerEvent('rs-lilhudlife:client:SetHealth', 90, 25)
+    TriggerEvent('rs-lilhudlife:client:RefreshStatus')
+
+SERVER-TO-CLIENT EXAMPLE
+------------------------
+A server resource may push display data to one player:
+
+    TriggerClientEvent('rs-lilhudlife:client:SetStatus', playerId, {
+        hunger = 80,
+        thirst = 75
+    })
+
+These are display interfaces only. Never use HUD values as proof for rewards,
+permissions, inventory, money, death authority, or other server-side decisions.
+
+CLIENT EXPORTS
+--------------
+From another client resource:
+
+    exports['rs-lilhudlife']:SetStatus({ hunger = 80, thirst = 75 })
+    exports['rs-lilhudlife']:RefreshStatus()
+
+Read the current local HUD state:
+
+    local status = exports['rs-lilhudlife']:GetStatus()
+    print(status.health, status.hunger, status.thirst)
+
+STATEBAGS
+---------
+If your custom status resource writes statebags, leave:
+
+    Config.HealthBridge.StateBags.Enabled = true
+
+Example:
+
+    LocalPlayer.state:set('hunger', 82, true)
+    LocalPlayer.state:set('thirst', 74, true)
+    LocalPlayer.state:set('stamina', 95, true)
+    LocalPlayer.state:set('stress', 20, true)
+
+EXPORT POLLING
+--------------
+For a custom client health/status provider:
+
+    Config.HealthBridge.Exports = {
+        Enabled = true,
+        Resource = 'my_health_resource',
+        PayloadFunction = 'GetStatusPayload',
+        Functions = {
+            health = 'GetHealth',
+            armor = 'GetArmor',
+            hunger = 'GetHunger',
+            thirst = 'GetThirst',
+            stamina = 'GetStamina',
+            oxygen = 'GetOxygen',
+        },
+    }
+
+Values may be supplied as 0-100, 0.0-1.0, or common high ESX-style status
+values. HUDLife normalizes them for display.
+
+REVIVE / HEAL REFRESH
+---------------------
+The default compatibility list includes common revive/heal events such as:
+- hospital:client:Revive
+- hospital:client:HealInjuries
+- qb-ambulancejob:client:Revive
+- esx_ambulancejob:revive
+- wasabi_ambulance:revive
+
+Add your own event to Config.HealthBridge.Events.RefreshAfter when needed.
+
+NOS / NITRO
+------------
+The Survival Cluster accepts a 0-100 NOS value through:
+
+    TriggerEvent('rs-lilhudlife:client:SetNOS', 75)
+    exports['rs-lilhudlife']:SetNOS(75)
+    exports['rs-lilhudlife']:SetStatus({ nos = 75 })
+
+Aliases `nitro`, `nitrous`, and `boost` are accepted. HUDLife can also read
+configured vehicle/player statebags, decorators, and supported provider exports.
+
+RULE OF AUTHORITY
+-----------------
+The medical/status/framework resource remains the authority. HUDLife is a
+read-only presentation layer and compatibility bridge.
