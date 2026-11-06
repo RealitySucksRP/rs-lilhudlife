@@ -6,8 +6,8 @@
 (function() {
     'use strict';
 
-    const VERSION = '1.4.3';
-    const VERSION_FULL = 'V4.5';
+    const VERSION = '1.4.6';
+    const VERSION_FULL = 'V4.6';
     const RESOURCE_NAME = 'rs-lilhudlife';
     let hudSuppressed = false;
 
@@ -144,6 +144,7 @@
         if (!document.body) return;
         document.body.classList.toggle('rs-hud-suppressed', hudSuppressed);
 
+        if (window.RSWeapon) window.RSWeapon.setSuppressed(hudSuppressed);
         if (hudSuppressed) {
             if (window.RSBoot) window.RSBoot.hide();
             if (window.RSSpeedo) window.RSSpeedo.hide();
@@ -206,6 +207,14 @@
                 }
                 break;
 
+            case 'updateWeapon':
+                if (window.RSWeapon) window.RSWeapon.update(msg.data || {});
+                break;
+
+            case 'hideWeapon':
+                if (window.RSWeapon) window.RSWeapon.hide();
+                break;
+
             case 'updateMoney':
                 if (window.RSMoney) window.RSMoney.handlePayload(msg);
                 break;
@@ -248,6 +257,7 @@
                 break;
 
             case 'hideAll':
+                if (window.RSWeapon) window.RSWeapon.hide();
                 if (window.RSBoot) window.RSBoot.hide();
                 if (window.RSSpeedo) window.RSSpeedo.hide();
                 if (window.RSStatus) window.RSStatus.hide();

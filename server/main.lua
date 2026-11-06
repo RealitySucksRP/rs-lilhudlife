@@ -4,7 +4,7 @@
 -- ============================================================
 
 local resourceName = GetCurrentResourceName()
-local version = '1.4.3'
+local version = '1.4.4'
 local moneyModeRequests = {}
 local MONEY_MODE_COOLDOWN_MS = 1500
 
@@ -132,4 +132,47 @@ end)
 
 AddEventHandler('playerDropped', function()
     moneyModeRequests[source] = nil
+end)
+
+-- Independent Qbox player-data adapter. The client cannot call a documented
+-- qbx_core:GetPlayerData export without importing Qbox's framework module.
+-- Serve a minimal read-only HUD snapshot from the authoritative server player.
+-- The caller cannot select a target ID or mutate framework money/inventory.
+local qboxDataRequests = {}
+local QBOX_DATA_COOLDOWN_MS = 1500
+
+RegisterNetEvent('rs-lilhudlife:server:requestQboxPlayerData', function(requestToken)
+    local src = source
+    if type(src) ~= 'number' or src <= 0 then return end
+    if type(requestToken) ~= 'number' or requestToken < 1 or requestToken > 1000000000 then return end
+    if requestToken % 1 ~= 0 then return end
+    if GetResourceState('qbx_core') ~= 'started' then return end
+
+    local now = GetGameTimer()
+    local last = qboxDataRequests[src]
+    if last and now >= last and now - last < QBOX_DATA_COOLDOWN_MS then return end
+    qboxDataRequests[src] = now
+
+    local ok, player = pcall(function() return exports.qbx_core:GetPlayer(src) end)
+    local data = ok and player and player.PlayerData
+    if type(data) ~= 'table' then return end -- character not selected yet
+
+    local metadata = type(data.metadata) == 'table' and data.metadata or {}
+    local money = type(data.money) == 'table' and data.money or {}
+    TriggerClientEvent('rs-lilhudlife:client:qboxPlayerData', src, {
+        money = { cash = tonumber(money.cash) or 0, bank = tonumber(money.bank) or 0 },
+        job = type(data.job) == 'table' and data.job or {},
+        metadata = {
+            isdead = metadata.isdead == true,
+            inlaststand = metadata.inlaststand == true,
+            hunger = metadata.hunger,
+            thirst = metadata.thirst,
+            stress = metadata.stress,
+            nos = metadata.nos,
+        },
+    }, requestToken)
+end)
+
+AddEventHandler('playerDropped', function()
+    qboxDataRequests[source] = nil
 end)

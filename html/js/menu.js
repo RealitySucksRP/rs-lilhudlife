@@ -53,6 +53,10 @@ const RSMenu = (function() {
         moneyX: 1, moneyY: 1,
         moneyScale: 100,
         moneyStyle: 'glass',
+        // Weapon: X from RIGHT, Y from BOTTOM; independent from speedo
+        weaponEnabled: true, weaponX: 3, weaponY: 9,
+        weaponScale: 100, weaponOpacity: 95, weaponStyle: 'arc',
+        weaponShowAmmoType: true, weaponShowReserve: true, weaponUseInventoryArt: true,
         pillServer: true,
         pillCash: true,
         pillBank: true,
@@ -112,6 +116,15 @@ const RSMenu = (function() {
         next.statusY = Math.round(clamp(next.statusY, 0, 95, 18));
         next.moneyX = Math.round(clamp(next.moneyX, 0, 95, 1));
         next.moneyY = Math.round(clamp(next.moneyY, 0, 95, 1));
+        next.weaponX = Math.round(clamp(next.weaponX, 0, 95, 3));
+        next.weaponY = Math.round(clamp(next.weaponY, 0, 95, 9));
+        next.weaponScale = Math.round(clamp(next.weaponScale, 65, 140, 100));
+        next.weaponOpacity = Math.round(clamp(next.weaponOpacity, 20, 100, 95));
+        next.weaponStyle = ['arc','minimal'].includes(next.weaponStyle) ? next.weaponStyle : 'arc';
+        next.weaponEnabled = next.weaponEnabled !== false;
+        next.weaponShowAmmoType = next.weaponShowAmmoType !== false;
+        next.weaponShowReserve = next.weaponShowReserve !== false;
+        next.weaponUseInventoryArt = next.weaponUseInventoryArt !== false;
         next.speedoMinimized = next.speedoMinimized === true;
 
         // One-time migration from the v1.3.6 bottom-center icon defaults.
@@ -192,6 +205,7 @@ const RSMenu = (function() {
             syncAudioToLua();
             syncSystemToLua();
             syncNosToLua();
+            syncWeaponToLua();
         } catch (e) {}
     }
 
@@ -234,6 +248,9 @@ const RSMenu = (function() {
                 iconStyle: settings.statusIconStyle
             });
         }
+        if (window.RSWeapon) {
+            window.RSWeapon.applyConfig(weaponConfig());
+        }
         if (window.RSMoney) {
             window.RSMoney.applyConfig({
                 enabled: settings.hudEnabled !== false && settings.moneyEnabled,
@@ -250,6 +267,14 @@ const RSMenu = (function() {
                 if (setting && value !== undefined) b.classList.toggle('active', settings[setting] == value);
             });
         }
+    }
+
+    function weaponConfig() {
+        return { enabled: settings.hudEnabled !== false && settings.weaponEnabled !== false,
+            x: settings.weaponX, y: settings.weaponY, scale: settings.weaponScale,
+            opacity: settings.weaponOpacity, style: settings.weaponStyle,
+            showAmmoType: settings.weaponShowAmmoType, showReserve: settings.weaponShowReserve,
+            useInventoryArt: settings.weaponUseInventoryArt };
     }
 
     // ============================================================
@@ -372,6 +397,22 @@ const RSMenu = (function() {
                 show: { health: settings.ringHealth, armor: settings.ringArmor, hunger: settings.ringHunger, thirst: settings.ringThirst, stamina: settings.ringStamina, oxygen: settings.ringOxygen, nos: (settings.nosEnabled && settings.ringNos) }
             });
         }
+
+        // Weapon visual follows HUDLife master toggle, and its own settings.
+        const weaponChecks = { 'menu-weapon-enabled': 'weaponEnabled', 'menu-weapon-ammo-type': 'weaponShowAmmoType',
+            'menu-weapon-reserve': 'weaponShowReserve', 'menu-weapon-inventory-art': 'weaponUseInventoryArt' };
+        Object.entries(weaponChecks).forEach(([id, key]) => {
+            const el = document.getElementById(id); if (el) el.checked = settings[key] !== false;
+        });
+        [['weapon-scale', 'weaponScale'], ['layout-weapon-scale', 'weaponScale'],
+         ['weapon-opacity', 'weaponOpacity'], ['weapon-x', 'weaponX'], ['weapon-y', 'weaponY'],
+         ['layout-weapon-x', 'weaponX'], ['layout-weapon-y', 'weaponY']].forEach(([id, key]) => {
+            const el = document.getElementById('menu-' + id);
+            const out = document.getElementById('menu-' + id + '-value');
+            if (el) el.value = settings[key];
+            if (out) out.textContent = settings[key] + '%';
+        });
+        if (window.RSWeapon) window.RSWeapon.applyConfig(weaponConfig());
 
         // Apply to money pills
         if (window.RSMoney) {
@@ -513,7 +554,8 @@ const RSMenu = (function() {
     const MAP_ELS = {
         speedo: { xKey: 'speedoX', yKey: 'speedoY', anchor: 'bl', label: 'SPEEDO' },
         status: { xKey: 'statusX', yKey: 'statusY', anchor: 'bl', label: 'ICONS' },
-        money:  { xKey: 'moneyX',  yKey: 'moneyY',  anchor: 'tr', label: 'MONEY' }
+        money:  { xKey: 'moneyX',  yKey: 'moneyY',  anchor: 'tr', label: 'MONEY' },
+        weapon: { xKey: 'weaponX', yKey: 'weaponY', anchor: 'br', label: 'WEAPON' }
     };
 
     function mapPlaceChip(el) {
@@ -526,8 +568,9 @@ const RSMenu = (function() {
             chip.style.left = x + '%'; chip.style.bottom = y + '%';
             chip.style.right = 'auto'; chip.style.top = 'auto';
         } else {
-            chip.style.right = x + '%'; chip.style.top = y + '%';
-            chip.style.left = 'auto'; chip.style.bottom = 'auto';
+            chip.style.right = x + '%'; chip.style.top = d.anchor === 'tr' ? y + '%' : 'auto';
+            chip.style.bottom = d.anchor === 'br' ? y + '%' : 'auto';
+            chip.style.left = 'auto';
         }
     }
 
@@ -541,6 +584,8 @@ const RSMenu = (function() {
             window.RSStatus.applyConfig({ x: settings.statusX, y: settings.statusY });
         } else if (el === 'money' && window.RSMoney) {
             window.RSMoney.applyConfig({ x: settings.moneyX, y: settings.moneyY });
+        } else if (el === 'weapon' && window.RSWeapon) {
+            window.RSWeapon.applyConfig(weaponConfig());
         }
     }
 
@@ -548,7 +593,7 @@ const RSMenu = (function() {
     function mapSyncSliders(el) {
         const d = MAP_ELS[el];
         if (!d) return;
-        const ids = { speedo: 'menu-speedo', status: 'menu-status', money: 'menu-money' }[el];
+        const ids = { speedo: 'menu-speedo', status: 'menu-status', money: 'menu-money', weapon: 'menu-layout-weapon' }[el];
         [['x', d.xKey], ['y', d.yKey]].forEach(([axis, key]) => {
             const s = document.getElementById(ids + '-' + axis);
             const v = document.getElementById(ids + '-' + axis + '-value');
@@ -562,7 +607,7 @@ const RSMenu = (function() {
         if (!out) return;
         const d = MAP_ELS[el];
         if (!d) { out.textContent = 'Drag a block, or use the sliders below.'; return; }
-        const ax = d.anchor === 'bl' ? 'from left / from bottom' : 'from right / from top';
+        const ax = d.anchor === 'bl' ? 'from left / from bottom' : d.anchor === 'br' ? 'from right / from bottom' : 'from right / from top';
         out.textContent = d.label + '  ' + settings[d.xKey] + '% , ' + settings[d.yKey] + '%   (' + ax + ')';
     }
 
@@ -587,10 +632,19 @@ const RSMenu = (function() {
                 settings[d.yKey] = Math.round(100 - py);
             } else {
                 settings[d.xKey] = Math.round(100 - px);
-                settings[d.yKey] = Math.round(py);
+                settings[d.yKey] = d.anchor === 'br' ? Math.round(100 - py) : Math.round(py);
             }
             mapPlaceChip(dragging);
             mapSyncSliders(dragging);
+            if (dragging === 'weapon') {
+                ['x','y'].forEach(axis => {
+                    const v = settings[axis === 'x' ? 'weaponX' : 'weaponY'];
+                    const slider = document.getElementById('menu-weapon-' + axis);
+                    const label = document.getElementById('menu-weapon-' + axis + '-value');
+                    if (slider) slider.value = v;
+                    if (label) label.textContent = v + '%';
+                });
+            }
             mapApplyLive(dragging);
             mapReadout(dragging);
         }
@@ -624,12 +678,21 @@ const RSMenu = (function() {
             syncToLua();
             syncStatusToLua();
             syncMoneyToLua();
+            syncWeaponToLua();
         }
         map.addEventListener('pointerup', endDrag);
         map.addEventListener('pointercancel', endDrag);
         map.addEventListener('pointerleave', endDrag);
 
         mapPlaceAll();
+    }
+
+    function syncWeaponToLua() {
+        if (typeof GetParentResourceName === 'undefined') return;
+        fetch(`https://${GetParentResourceName()}/saveWeaponSettings`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled: settings.weaponEnabled !== false, hideNative: true })
+        }).catch(() => {});
     }
 
     function syncNosToLua() {
@@ -675,7 +738,7 @@ const RSMenu = (function() {
         left:    { iconLayout: 'stacked',    statusX: 1,  statusY: 3,  statusScale: 82 },
         right:   { iconLayout: 'stacked',    statusX: 17, statusY: 3,  statusScale: 82 },
         compact: { iconLayout: 'compact',    statusX: 2,  statusY: 18, statusScale: 85 },
-        reset:   { iconLayout: 'horizontal', statusX: 2,  statusY: 18, statusScale: 88, speedoX: 20, speedoY: 4, scale: 88, moneyX: 1, moneyY: 1, moneyScale: 100 }
+        reset:   { iconLayout: 'horizontal', statusX: 2,  statusY: 18, statusScale: 88, speedoX: 20, speedoY: 4, scale: 88, moneyX: 1, moneyY: 1, moneyScale: 100, weaponX: 3, weaponY: 9, weaponScale: 100 }
     };
 
     function applyLayoutPreset(name) {
@@ -687,6 +750,7 @@ const RSMenu = (function() {
         syncToLua();
         syncStatusToLua();
         syncMoneyToLua();
+        syncWeaponToLua();
     }
 
     // ============================================================
@@ -739,6 +803,8 @@ const RSMenu = (function() {
                 // Route sync to the right endpoint based on setting name
                 if (setting.startsWith('status') || setting === 'iconLayout') {
                     syncStatusToLua();
+                } else if (setting.startsWith('weapon')) {
+                    syncWeaponToLua();
                 } else if (setting.startsWith('money')) {
                     syncMoneyToLua();
                 } else if (setting.startsWith('nos')) {
@@ -748,6 +814,41 @@ const RSMenu = (function() {
                     syncToLua();
                 }
             });
+        });
+
+        // Weapon HUD toggles and live layout sliders (also mirrored in Layout tab).
+        const weaponToggles = { 'menu-weapon-enabled': 'weaponEnabled',
+            'menu-weapon-ammo-type': 'weaponShowAmmoType', 'menu-weapon-reserve': 'weaponShowReserve',
+            'menu-weapon-inventory-art': 'weaponUseInventoryArt' };
+        Object.entries(weaponToggles).forEach(([id, key]) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('change', () => {
+                settings[key] = el.checked; applySettings(); syncWeaponToLua();
+            });
+        });
+        [['weapon-x','weaponX'], ['weapon-y','weaponY'],
+         ['layout-weapon-x','weaponX'], ['layout-weapon-y','weaponY'],
+         ['weapon-scale','weaponScale'], ['layout-weapon-scale','weaponScale'],
+         ['weapon-opacity','weaponOpacity']].forEach(([id, key]) => {
+            const el = document.getElementById('menu-' + id);
+            if (!el) return;
+            el.addEventListener('input', () => {
+                settings[key] = Math.round(Number(el.value));
+                if (window.RSWeapon) window.RSWeapon.applyConfig(weaponConfig());
+                // Mirror duplicated controls and position map without saving on each pixel.
+                [['weapon-x','weaponX'], ['weapon-y','weaponY'],
+                 ['layout-weapon-x','weaponX'], ['layout-weapon-y','weaponY'],
+                 ['weapon-scale','weaponScale'], ['layout-weapon-scale','weaponScale'],
+                 ['weapon-opacity','weaponOpacity']].forEach(([other, otherKey]) => {
+                    const slider = document.getElementById('menu-' + other);
+                    const text = document.getElementById('menu-' + other + '-value');
+                    if (slider && slider !== el) slider.value = settings[otherKey];
+                    if (text) text.textContent = settings[otherKey] + '%';
+                });
+                mapPlaceChip('weapon');
+            });
+            el.addEventListener('change', () => save());
         });
 
         // Speedo X/Y sliders
@@ -938,6 +1039,7 @@ const RSMenu = (function() {
                 syncStatusToLua();
                 syncMoneyToLua();
                 syncSystemToLua();
+                syncWeaponToLua();
             });
         }
 
@@ -1027,6 +1129,7 @@ const RSMenu = (function() {
                 syncAudioToLua();
                 syncSystemToLua();
                 syncNosToLua();
+                syncWeaponToLua();
             });
         }
 
@@ -1073,6 +1176,7 @@ const RSMenu = (function() {
         if (window.RSSpeedo) window.RSSpeedo.show();
         if (window.RSStatus) window.RSStatus.show();
         if (window.RSMoney) window.RSMoney.show();
+        if (window.RSWeapon) window.RSWeapon.setEditorMode(true);
         const activeNav = document.querySelector('.menu-nav-btn.active');
         overlay.dataset.activeTab = activeNav ? (activeNav.dataset.tab || 'display') : 'display';
         overlay.classList.remove('hidden');
@@ -1089,6 +1193,7 @@ const RSMenu = (function() {
         isMenuOpen = false;
         if (window.RSSpeedo && typeof window.RSSpeedo.setEditorMode === 'function') window.RSSpeedo.setEditorMode(false);
         if (!editorContext.inVehicle && window.RSSpeedo) window.RSSpeedo.hide();
+        if (window.RSWeapon) window.RSWeapon.setEditorMode(false);
         save();
         syncToLua();
         syncStatusToLua();
@@ -1096,6 +1201,7 @@ const RSMenu = (function() {
         syncAudioToLua();
         syncSystemToLua();
         syncNosToLua();
+        syncWeaponToLua();
         if (typeof GetParentResourceName === 'undefined') return;
         fetch(`https://${GetParentResourceName()}/closeMenu`, {
             method: 'POST',

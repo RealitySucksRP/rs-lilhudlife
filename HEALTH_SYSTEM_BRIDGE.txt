@@ -1,6 +1,6 @@
 RS HUDLife - Universal Health / Status Bridge
 ============================================
-Version 1.4.3
+Version 1.4.6
 
 PURPOSE
 -------
@@ -18,10 +18,10 @@ Qbox / qbx_core
 - Works with the QB compatibility bridge when enabled.
 - Has a native qbx_core player-data fallback when that bridge is disabled.
 - Uses Qbox's documented QBCore-compatible money/job events.
-- Can read Qbox death/last-stand metadata through rs_bridge or qbx_core.
+- Reads Qbox death/last-stand metadata through the internal Qbox adapter and statebags.
 
 ESX Legacy
-- Uses rs_bridge when present or direct es_extended exports/events otherwise.
+- Reads es_extended exports and supported ESX events directly.
 - Reads money/account/job updates from ESX.
 - Can consume esx_status values when enabled in Config.HealthBridge.
 

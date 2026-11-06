@@ -1,19 +1,6 @@
--- rs-lilhudlife framework provider.
---
--- The HUD previously resolved its framework by requiring a *resource* named
--- qb-core to be started. Qbox never satisfies that: qbx_core only declares
--- provide 'qb-core', so GetResourceState('qb-core') is 'missing' and the HUD
--- silently fell back to standalone mode, losing money, job and framework
--- status values.
---
--- Direct framework providers are tried first so vehicle artwork works without
--- rs_bridge. The bridge remains an optional final compatibility provider.
-
+-- RS HUDLife's internal framework and vehicle adapter.
+-- No external compatibility resource is needed.
 RSHUDBridge = RSHUDBridge or {}
-
-local function bridgeUp()
-    return GetResourceState('rs_bridge') == 'started'
-end
 
 -- Resolves a vehicle model hash to its spawn name using the framework's own
 -- vehicle registry. Needed because GetEntityArchetypeName is unreliable on
@@ -60,23 +47,8 @@ function RSHUDBridge.GetVehicleModelName(hash)
         end
     end
 
-    if bridgeUp() then
-        local ok, name = pcall(function()
-            return exports.rs_bridge:GetVehicleModelName(hash)
-        end)
-        if ok and type(name) == 'string' and name ~= '' then return name:lower() end
-    end
     return nil
 end
-
--- Returns 'qbox' | 'qbcore' | 'esx' | nil
-function RSHUDBridge.Framework()
-    if not bridgeUp() then return nil end
-    local ok, framework = pcall(function() return exports.rs_bridge:GetFramework() end)
-    if ok and framework and framework ~= 'standalone' then return framework end
-    return nil
-end
-
 
 -- Is the player dead or bleeding out?
 --
@@ -87,23 +59,22 @@ end
 -- GetEntityHealth therefore reports 100% over a corpse -- which is exactly
 -- what it used to do here.
 --
--- rs_bridge answers it properly for Qbox, QBCore and ESX alike.
+-- Read the owning framework's metadata/state and use ped state as fallback.
 ---@return boolean
 function RSHUDBridge.IsPlayerDownOrDead()
-    if bridgeUp() then
-        local ok, dead = pcall(function() return exports.rs_bridge:IsPlayerDead() end)
-        if ok and dead == true then return true end
-
-        local ok2, down = pcall(function() return exports.rs_bridge:IsPlayerDown() end)
-        if ok2 and down == true then return true end
-    end
-
-    -- Native Qbox fallback works even when the QB compatibility bridge is off.
+    -- Qbox's documented client data is QBX.PlayerData (when imported).
+    -- HUDLife's internal server snapshot also covers Qbox without that import.
     if GetResourceState('qbx_core') == 'started' then
-        local okData, data = pcall(function() return exports.qbx_core:GetPlayerData() end)
-        local metadata = okData and data and data.metadata or nil
+        local data = RSHUDBridge.QboxPlayerData
+        if type(QBX) == 'table' and type(QBX.PlayerData) == 'table' and next(QBX.PlayerData) then
+            data = QBX.PlayerData
+        end
+        local metadata = type(data) == 'table' and data.metadata or nil
         if type(metadata) == 'table' then
             if metadata.isdead == true or metadata.inlaststand == true then return true end
+        end
+        if LocalPlayer and LocalPlayer.state then
+            if LocalPlayer.state.isDead == true or LocalPlayer.state.inLaststand == true then return true end
         end
     end
 
@@ -120,20 +91,3 @@ function RSHUDBridge.IsPlayerDownOrDead()
     return IsEntityDead(PlayerPedId())
 end
 
-RSHUDBridge.Core = {
-    Functions = {
-        GetPlayerData = function()
-            if not bridgeUp() then return {} end
-            local ok, data = pcall(function() return exports.rs_bridge:GetPlayerData() end)
-            return ok and data or {}
-        end,
-        TriggerCallback = function(name, cb, ...)
-            if not bridgeUp() then if cb then cb(nil) end return nil end
-            return exports.rs_bridge:TriggerServerCallback(name, cb, ...)
-        end,
-        Notify = function(message, notifyType, duration)
-            if not bridgeUp() then return false end
-            return exports.rs_bridge:Notify(message, notifyType, duration)
-        end
-    }
-}

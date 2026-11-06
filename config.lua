@@ -1,8 +1,8 @@
 Config = {}
 
 -- Framework selection for money/job/status data.
--- 'auto' detects rs_bridge first, then Qbox/QBCore compatibility, ESX, and
--- finally falls back to standalone native HUD values.
+-- 'auto' detects installed frameworks and uses internal Qbox/QBCore/ESX
+-- compatibility paths, or standalone native HUD values when none is present.
 Config.Framework = 'auto' -- 'auto', 'qbox', 'qbcore', 'esx', 'standalone'
 Config.Enabled = true -- Per-player F9 master HUD switch starts enabled.
 
@@ -585,3 +585,23 @@ Config.Money = {
 -- DEBUG
 -- ============================================================
 Config.Debug = false           -- Print debug info to client console
+
+-- Compact weapon HUD (optional ox_inventory artwork with built-in silhouettes).
+-- Actual ammo types are read from GTA weapon natives. GTA does not define
+-- universal real-world calibers; set per-weapon labels below if desired.
+Config.WeaponHud = {
+    Enabled = true,
+    PosX = 3, -- percentage from RIGHT edge
+    PosY = 9, -- percentage from BOTTOM edge
+    Scale = 100, -- percentage
+    Opacity = 95,
+    Style = 'arc', -- 'arc' or 'minimal'
+    ShowAmmoType = true,
+    ShowReserve = true,
+    HideNativeAmmo = true,
+    UseInventoryImages = true, -- if ox_inventory has that weapon image
+    AmmoLabelOverrides = {
+        -- ['WEAPON_CARBINERIFLE'] = '5.56MM',
+        -- ['WEAPON_PISTOL'] = '9MM',
+    }
+}

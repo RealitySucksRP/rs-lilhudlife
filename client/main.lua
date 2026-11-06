@@ -104,6 +104,20 @@ end)
 
 local QBCore = nil
 local detectedFramework = 'standalone'
+-- Qbox without QB compatibility has no documented client GetPlayerData export.
+-- The included server adapter returns ONLY this player's display fields.
+local nativeQboxMode = false
+local nativeQboxPlayerData = nil
+local nativeQboxLastRequest = -5000
+local nativeQboxRequestToken = 0
+local function requestNativeQboxPlayerData()
+    if not nativeQboxMode or GetResourceState('qbx_core') ~= 'started' then return end
+    local now = GetGameTimer()
+    if now >= nativeQboxLastRequest and now - nativeQboxLastRequest < 2000 then return end
+    nativeQboxLastRequest = now
+    nativeQboxRequestToken = nativeQboxRequestToken + 1
+    TriggerServerEvent('rs-lilhudlife:server:requestQboxPlayerData', nativeQboxRequestToken)
+end
 local qbMechanicNosPollPending = false
 local qbMechanicNosLastPoll = 0
 local qbMechanicNosRequestId = 0
@@ -304,7 +318,7 @@ local function getVehicleData(vehicle)
     -- which used to drop straight through to the GXT label -- so 'polcoquette4'
     -- was looked up as 'coquet4', found no art, and the panel fell back to a
     -- silhouette. Validate the archetype against the model hash, and when it
-    -- fails ask the framework's own registry through rs_bridge before settling
+    -- fails ask the available framework's vehicle registry before settling
     -- for the label.
     local spawnName
     local okArch, archName = pcall(GetEntityArchetypeName, vehicle)
@@ -807,9 +821,8 @@ local function applyStatusPayload(payload, source, push)
 end
 
 -- Resolves the framework facade used for player data, money and job.
--- rs_bridge is preferred, then QB compatibility, native Qbox, direct ESX,
--- and finally standalone. Detection is capability-based rather than tied to
--- one framework resource name.
+-- Uses native QB compatibility, Qbox, or ESX providers, then standalone.
+-- Detection is capability-based and handled within this resource.
 local function normalizeESXPlayerData(data)
     data = type(data) == 'table' and data or {}
     local cash = tonumber(data.money) or 0
@@ -854,17 +867,6 @@ local function initQBCoreOnce()
         return false
     end
 
-    -- Preferred path: rs_bridge already normalizes Qbox, QBCore and ESX.
-    if requested == 'auto' or requested == 'qbox' or requested == 'qbcore' or requested == 'esx' then
-        local framework = RSHUDBridge and RSHUDBridge.Framework()
-        if framework and (requested == 'auto' or requested == framework) then
-            QBCore = RSHUDBridge.Core
-            detectedFramework = framework
-            debug(('framework resolved via rs_bridge: %s'):format(framework))
-            return true
-        end
-    end
-
     -- Qbox deliberately has no resource folder named `qb-core`, but its QB bridge
     -- still provides exports['qb-core']:GetCoreObject(). Therefore do not gate this
     -- call on GetResourceState('qb-core') -- pcall is the correct feature test.
@@ -884,35 +886,30 @@ local function initQBCoreOnce()
         end
     end
 
-    -- Native Qbox fallback for servers that intentionally disable the QB
-    -- compatibility bridge. qbx_core exposes GetPlayerData/Notify directly and
-    -- continues to emit the documented QBCore money/job events.
-    if requested == 'auto' or requested == 'qbox' then
-        if GetResourceState('qbx_core') == 'started' then
-            local okData, playerData = pcall(function() return exports.qbx_core:GetPlayerData() end)
-            if okData and type(playerData) == 'table' then
-                QBCore = {
-                    Functions = {
-                        GetPlayerData = function()
-                            local ok, data = pcall(function() return exports.qbx_core:GetPlayerData() end)
-                            return ok and data or {}
-                        end,
-                        Notify = function(message, notifyType, duration)
-                            local ok = pcall(function()
-                                exports.qbx_core:Notify(message, notifyType, duration)
-                            end)
-                            return ok
-                        end,
-                    }
-                }
-                detectedFramework = 'qbox'
-                debug('Qbox initialized through native qbx_core exports')
-                return true
-            end
-        end
+    -- Native Qbox fallback: no QB compatibility export or external dependency.
+    -- qbx_core documents QBX.PlayerData via a manifest import, which cannot be
+    -- mandatory in this multi-framework resource. Resolve a minimal read-only
+    -- player snapshot from our own server script instead.
+    if (requested == 'auto' or requested == 'qbox') and GetResourceState('qbx_core') == 'started' then
+        nativeQboxMode = true
+        QBCore = {
+            Functions = {
+                GetPlayerData = function() return nativeQboxPlayerData or {} end,
+                Notify = function(message, notifyType, duration)
+                    local ok = pcall(function()
+                        exports.qbx_core:Notify(message, notifyType, duration)
+                    end)
+                    return ok
+                end,
+            }
+        }
+        detectedFramework = 'qbox'
+        requestNativeQboxPlayerData()
+        debug('Qbox native HUD snapshot adapter initialized')
+        return true
     end
 
-    -- Direct ESX fallback so rs_bridge is optional rather than secretly required.
+    -- Direct ESX integration through es_extended's documented exports.
     if requested == 'auto' or requested == 'esx' then
         if GetResourceState('es_extended') == 'started' then
             local ok, ESX = pcall(function() return exports['es_extended']:getSharedObject() end)
@@ -946,7 +943,6 @@ local function initQBCoreOnce()
 end
 
 local FRAMEWORK_RESOURCES = {
-    rs_bridge = true,
     ['qb-core'] = true,
     qbx_core = true,
     es_extended = true,
@@ -961,17 +957,26 @@ local function queueFrameworkRefresh()
         frameworkRefreshQueued = false
         QBCore = nil
         detectedFramework = 'standalone'
+        nativeQboxMode = false
+        nativeQboxPlayerData = nil
+        nativeQboxRequestToken = nativeQboxRequestToken + 1 -- invalidate pending snapshots
+        RSHUDBridge.QboxPlayerData = nil
 
         if initQBCoreOnce() and onPlayerLoaded then
-            local ok, data = pcall(function() return QBCore.Functions.GetPlayerData() end)
-            onPlayerLoaded(ok and data or {})
+            if nativeQboxMode then
+                playerLoaded = false
+                closeHudMenu(true)
+                sendNUI({ action = 'hideAll' })
+            else
+                local ok, data = pcall(function() return QBCore.Functions.GetPlayerData() end)
+                onPlayerLoaded(ok and data or {})
+            end
         end
     end)
 end
 
--- Framework/bridge resources are optional, so no hard dependency belongs in
--- fxmanifest.lua. Re-resolve the provider when one starts/stops instead of
--- requiring a HUD restart after framework maintenance.
+-- Frameworks are optional and detected internally; refresh providers on
+-- framework start/stop without requiring a HUD restart.
 AddEventHandler('onClientResourceStart', function(resource)
     if FRAMEWORK_RESOURCES[resource] then queueFrameworkRefresh() end
 end)
@@ -1998,14 +2003,21 @@ Citizen.CreateThread(function()
         waited = waited + 500
     end
 
-    if QBCore then
+    if QBCore and not nativeQboxMode then
         local ok, PlayerData = pcall(function()
             return QBCore.Functions.GetPlayerData()
         end)
         onPlayerLoaded(ok and PlayerData or {})
-    else
+    elseif not QBCore then
         debug('No framework detected; running standalone health bridge mode')
         onPlayerLoaded({})
+    end
+
+    -- The server might not yet have a Qbox character (multicharacter screen).
+    -- Retry conservatively; never treat a missing snapshot as a logged-in player.
+    while nativeQboxMode and not nativeQboxPlayerData do
+        Citizen.Wait(5000)
+        requestNativeQboxPlayerData()
     end
 
     -- Late-start safety for servers that start qb-core after this HUD.
@@ -2015,7 +2027,7 @@ Citizen.CreateThread(function()
             local ok, PlayerData = pcall(function()
                 return QBCore.Functions.GetPlayerData()
             end)
-            onPlayerLoaded(ok and PlayerData or {})
+            if not nativeQboxMode then onPlayerLoaded(ok and PlayerData or {}) end
             break
         end
     end
@@ -2087,6 +2099,15 @@ function onPlayerLoaded(PlayerData)
             moneyY       = Config.Money.PosY,
             moneyScale   = math.floor((Config.Money.Scale or 1.0) * 100 + 0.5),
             moneyStyle   = Config.Money.Style,
+            weaponEnabled = (Config.WeaponHud or {}).Enabled ~= false,
+            weaponX = (Config.WeaponHud or {}).PosX or 3,
+            weaponY = (Config.WeaponHud or {}).PosY or 9,
+            weaponScale = (Config.WeaponHud or {}).Scale or 100,
+            weaponOpacity = (Config.WeaponHud or {}).Opacity or 95,
+            weaponStyle = (Config.WeaponHud or {}).Style or 'arc',
+            weaponShowAmmoType = (Config.WeaponHud or {}).ShowAmmoType ~= false,
+            weaponShowReserve = (Config.WeaponHud or {}).ShowReserve ~= false,
+            weaponUseInventoryArt = (Config.WeaponHud or {}).UseInventoryImages ~= false,
             pillVoice    = not (Config.Money.Show and Config.Money.Show.voice == false),
             nosEnabled   = (Config.NOSBridge or {}).Enabled ~= false,
             nosStyle     = (Config.NOSBridge or {}).Style or 'bottle',
@@ -2110,6 +2131,9 @@ function onPlayerLoaded(PlayerData)
 end
 
 local function onPlayerUnloaded()
+    nativeQboxPlayerData = nil
+    nativeQboxRequestToken = nativeQboxRequestToken + 1
+    RSHUDBridge.QboxPlayerData = nil
     closeHudMenu(true)
     playerLoaded = false
     bootPlayed = false
@@ -2140,8 +2164,37 @@ end
 -- ============================================================
 -- QBCORE EVENT HOOKS
 -- ============================================================
+-- Only the server-side GetPlayer(source) result can establish a Qbox-native
+-- character snapshot. Ignore bogus/local data and preserve clean logout state.
+RegisterNetEvent('rs-lilhudlife:client:qboxPlayerData', function(data, requestToken)
+    if source ~= 65535 then return end -- server-origin only
+    if not nativeQboxMode or detectedFramework ~= 'qbox' then return end
+    if type(requestToken) ~= 'number' or requestToken ~= nativeQboxRequestToken then return end
+    if type(data) ~= 'table' or type(data.money) ~= 'table' then return end
+    nativeQboxPlayerData = data
+    RSHUDBridge.QboxPlayerData = data
+    if not playerLoaded then
+        onPlayerLoaded(data)
+    else
+        moneyData.bank = math.max(0, tonumber(data.money.bank) or 0)
+        if not usesCashAsItem() then
+            moneyData.cash = math.max(0, tonumber(data.money.cash) or 0)
+        end
+        if type(data.job) == 'table' then
+            moneyData.job = data.job.label or data.job.name or ''
+            moneyData.jobGrade = jobGradeLabel(data.job)
+        end
+        refreshAllStatusSources(true)
+        pushMoney()
+    end
+end)
+
 AddEventHandler('QBCore:Client:OnPlayerLoaded', function()
     if not QBCore then initQBCoreOnce() end
+    if nativeQboxMode then
+        requestNativeQboxPlayerData()
+        return
+    end
     local PlayerData = {}
     if QBCore then
         local ok, data = pcall(function()
@@ -2154,6 +2207,16 @@ end)
 
 RegisterNetEvent('QBCore:Client:OnPlayerUnload', function()
     onPlayerUnloaded()
+end)
+
+-- Qbox can push individual metadata changes separately from full PlayerData.
+-- Keep the internal snapshot current for down/laststand, needs and status rings.
+RegisterNetEvent('qbx_core:client:onSetMetaData', function(key, oldValue, newValue)
+    if not nativeQboxMode or type(key) ~= 'string' or not nativeQboxPlayerData then return end
+    nativeQboxPlayerData.metadata = nativeQboxPlayerData.metadata or {}
+    nativeQboxPlayerData.metadata[key] = newValue
+    RSHUDBridge.QboxPlayerData = nativeQboxPlayerData
+    refreshAllStatusSources(true)
 end)
 
 RegisterNetEvent('qbx_core:client:playerLoggedOut', function()
@@ -2246,7 +2309,20 @@ end)
 -- Full PlayerData replacement (login, character swap, etc).
 -- Recount cash from items when present.
 RegisterNetEvent('QBCore:Player:SetPlayerData', function(PlayerData)
-    if not PlayerData then return end
+    if type(PlayerData) ~= 'table' then return end
+    -- This Qbox framework update keeps metadata current. Initial login still
+    -- requires the server snapshot so a local event cannot fake login state.
+    if nativeQboxMode and nativeQboxPlayerData then
+        if type(PlayerData.metadata) == 'table' then
+            nativeQboxPlayerData.metadata = PlayerData.metadata
+        end
+        if type(PlayerData.money) == 'table' then
+            nativeQboxPlayerData.money = PlayerData.money
+        end
+        if type(PlayerData.job) == 'table' then
+            nativeQboxPlayerData.job = PlayerData.job
+        end
+    end
     if usesCashAsItem() and PlayerData.items and type(PlayerData.items) == 'table' then
         moneyData.cash = math.max(0, countCashItems(PlayerData.items))
     elseif PlayerData.money and PlayerData.money.cash ~= nil then
@@ -2260,6 +2336,9 @@ end)
 
 -- Per-field player data updates (zombie qb-inventory uses this for items sync).
 RegisterNetEvent('QBCore:Player:UpdatePlayerDataField', function(key, val)
+    if nativeQboxMode and nativeQboxPlayerData and (key == 'money' or key == 'metadata' or key == 'job') then
+        nativeQboxPlayerData[key] = val
+    end
     if key == 'items' then
         if usesCashAsItem() then
             moneyData.cash = math.max(0, countCashItems(val))
@@ -2293,63 +2372,8 @@ RegisterNetEvent('QBCore:Client:OnJobUpdate', function(JobInfo)
 end)
 
 -- ============================================================
--- ESX EVENT HOOKS (via rs_bridge)
+-- DIRECT ESX EVENT HOOKS
 -- ============================================================
--- None of the QBCore:* events above exist on ESX, so without this block the
--- HUD's money and job pills never update there. rs_bridge normalizes both
--- ecosystems onto rs_bridge:client:* events.
---
--- Those normalized events also fire on Qbox/QBCore, where the handlers above
--- have already run, so each one bails unless ESX is the resolved framework.
--- That keeps this purely additive: the working Qbox path is untouched.
-local function esxResolved()
-    return detectedFramework == 'esx'
-end
-
-AddEventHandler('rs_bridge:client:playerLoaded', function()
-    if not esxResolved() then return end
-    if not QBCore then initQBCoreOnce() end
-
-    local PlayerData = {}
-    if QBCore then
-        local ok, data = pcall(function()
-            return QBCore.Functions.GetPlayerData()
-        end)
-        PlayerData = ok and data or {}
-    end
-    onPlayerLoaded(PlayerData)
-end)
-
-AddEventHandler('rs_bridge:client:playerUnloaded', function()
-    if not esxResolved() then return end
-    onPlayerUnloaded()
-end)
-
-AddEventHandler('rs_bridge:client:jobUpdate', function(job)
-    if not esxResolved() or not job then return end
-    moneyData.job = job.label or job.name or ''
-    moneyData.jobGrade = jobGradeLabel(job)
-    pushMoney()
-end)
-
--- ESX always reports an absolute balance, so this is always a 'set'.
-AddEventHandler('rs_bridge:client:moneyChange', function(account, amount)
-    if not esxResolved() then return end
-    amount = math.max(0, tonumber(amount) or 0)
-
-    if account == 'cash' then
-        moneyData.cash = amount
-    elseif account == 'bank' then
-        moneyData.bank = amount
-    else
-        return
-    end
-
-    pushMoney()
-end)
-
-
--- Direct ESX events for servers that do not use rs_bridge.
 RegisterNetEvent('esx:playerLoaded', function()
     if detectedFramework ~= 'esx' then return end
     SetTimeout(0, function()
@@ -3128,6 +3152,9 @@ RegisterCommand('rshuddiag', function()
             tostring(menuOpen), tostring(menuRadarForced), tostring(pauseMenuHiddenHud),
             tostring(externalHudHidden), tostring(hudMasterEnabled), tostring(inVehicle),
             tostring(bootInProgress)))
+    print(('^5[RS HUDLife]^7 qboxNative=%s snapshot=%s snapshotAgeMs=%s')
+        :format(tostring(nativeQboxMode), tostring(nativeQboxPlayerData ~= nil),
+            tostring(nativeQboxMode and (GetGameTimer() - nativeQboxLastRequest) or 'n/a')))
     print(('^5[RS HUDLife]^7 moneyProvider=%s cashAsItem=%s cashItem=%s qb=%s qbox=%s esx=%s ox=%s')
         :format(tostring(detectedMoneyProvider), tostring(usesCashAsItem()),
             tostring(cashItemName()), GetResourceState('qb-core'), GetResourceState('qbx_core'),
@@ -3183,4 +3210,284 @@ RegisterCommand('hudmech', function()
     for k, v in pairs(status) do
         print(('    %-10s %s'):format(tostring(k), tostring(v)))
     end
+end, false)
+
+-- ============================================================
+-- WEAPON HUD v1.4.5 - compact firearm / clip / reserve display
+-- Standalone, QBCore, Qbox, ESX, ox_inventory-compatible.
+-- No inventory dependency and no changes to weapon ownership/ammo.
+-- ============================================================
+local weaponHudCfg = Config.WeaponHud or {}
+local weaponHudEnabled = weaponHudCfg.Enabled ~= false
+local weaponHudLastSignature = nil
+local weaponHudOxCurrent = nil
+
+local function weaponUnsignedHash(hash)
+    return (tonumber(hash) or 0) & 0xFFFFFFFF
+end
+
+local weaponNames = {}
+local function weaponInfo(model, label, category)
+    weaponNames[weaponUnsignedHash(GetHashKey(model))] = { model = model, label = label, category = category }
+end
+
+-- Actual inventory names are preferred when ox_inventory supplies them.
+-- These are GTA weapon identifiers, not forced real-world cartridge sizes.
+local weaponDefinitions = {
+    {'WEAPON_PISTOL', 'Pistol', 'pistol'},
+    {'WEAPON_PISTOL_MK2', 'Pistol Mk II', 'pistol'},
+    {'WEAPON_COMBATPISTOL', 'Combat Pistol', 'pistol'},
+    {'WEAPON_APPISTOL', 'AP Pistol', 'pistol'},
+    {'WEAPON_PISTOL50', 'Pistol .50', 'pistol'},
+    {'WEAPON_SNSPISTOL', 'SNS Pistol', 'pistol'},
+    {'WEAPON_SNSPISTOL_MK2', 'SNS Pistol Mk II', 'pistol'},
+    {'WEAPON_HEAVYPISTOL', 'Heavy Pistol', 'pistol'},
+    {'WEAPON_VINTAGEPISTOL', 'Vintage Pistol', 'pistol'},
+    {'WEAPON_MARKSMANPISTOL', 'Marksman Pistol', 'pistol'},
+    {'WEAPON_CERAMICPISTOL', 'Ceramic Pistol', 'pistol'},
+    {'WEAPON_GADGETPISTOL', 'Perico Pistol', 'pistol'},
+    {'WEAPON_PISTOLXM3', 'WM 29 Pistol', 'pistol'},
+    {'WEAPON_STUNGUN', 'Stun Gun', 'pistol'},
+    {'WEAPON_STUNGUN_MP', 'Stun Gun', 'pistol'},
+    {'WEAPON_FLAREGUN', 'Flare Gun', 'pistol'},
+    {'WEAPON_REVOLVER', 'Heavy Revolver', 'revolver'},
+    {'WEAPON_REVOLVER_MK2', 'Heavy Revolver Mk II', 'revolver'},
+    {'WEAPON_DOUBLEACTION', 'Double-Action Revolver', 'revolver'},
+    {'WEAPON_NAVYREVOLVER', 'Navy Revolver', 'revolver'},
+    {'WEAPON_MICROSMG', 'Micro SMG', 'smg'},
+    {'WEAPON_SMG', 'SMG', 'smg'},
+    {'WEAPON_SMG_MK2', 'SMG Mk II', 'smg'},
+    {'WEAPON_ASSAULTSMG', 'Assault SMG', 'smg'},
+    {'WEAPON_COMBATPDW', 'Combat PDW', 'smg'},
+    {'WEAPON_MACHINEPISTOL', 'Machine Pistol', 'smg'},
+    {'WEAPON_MINISMG', 'Mini SMG', 'smg'},
+    {'WEAPON_TECPISTOL', 'Tactical SMG', 'smg'},
+    {'WEAPON_PUMPSHOTGUN', 'Pump Shotgun', 'shotgun'},
+    {'WEAPON_PUMPSHOTGUN_MK2', 'Pump Shotgun Mk II', 'shotgun'},
+    {'WEAPON_SAWNOFFSHOTGUN', 'Sawed-Off Shotgun', 'shotgun'},
+    {'WEAPON_ASSAULTSHOTGUN', 'Assault Shotgun', 'shotgun'},
+    {'WEAPON_BULLPUPSHOTGUN', 'Bullpup Shotgun', 'shotgun'},
+    {'WEAPON_MUSKET', 'Musket', 'shotgun'},
+    {'WEAPON_HEAVYSHOTGUN', 'Heavy Shotgun', 'shotgun'},
+    {'WEAPON_DBSHOTGUN', 'Double Barrel Shotgun', 'shotgun'},
+    {'WEAPON_AUTOSHOTGUN', 'Sweeper Shotgun', 'shotgun'},
+    {'WEAPON_COMBATSHOTGUN', 'Combat Shotgun', 'shotgun'},
+    {'WEAPON_ASSAULTRIFLE', 'Assault Rifle', 'rifle'},
+    {'WEAPON_ASSAULTRIFLE_MK2', 'Assault Rifle Mk II', 'rifle'},
+    {'WEAPON_CARBINERIFLE', 'Carbine Rifle', 'rifle'},
+    {'WEAPON_CARBINERIFLE_MK2', 'Carbine Rifle Mk II', 'rifle'},
+    {'WEAPON_ADVANCEDRIFLE', 'Advanced Rifle', 'rifle'},
+    {'WEAPON_SPECIALCARBINE', 'Special Carbine', 'rifle'},
+    {'WEAPON_SPECIALCARBINE_MK2', 'Special Carbine Mk II', 'rifle'},
+    {'WEAPON_BULLPUPRIFLE', 'Bullpup Rifle', 'rifle'},
+    {'WEAPON_BULLPUPRIFLE_MK2', 'Bullpup Rifle Mk II', 'rifle'},
+    {'WEAPON_COMPACTRIFLE', 'Compact Rifle', 'rifle'},
+    {'WEAPON_MILITARYRIFLE', 'Military Rifle', 'rifle'},
+    {'WEAPON_HEAVYRIFLE', 'Heavy Rifle', 'rifle'},
+    {'WEAPON_TACTICALRIFLE', 'Service Carbine', 'rifle'},
+    {'WEAPON_BATTLERIFLE', 'Battle Rifle', 'rifle'},
+    {'WEAPON_MG', 'MG', 'mg'},
+    {'WEAPON_COMBATMG', 'Combat MG', 'mg'},
+    {'WEAPON_COMBATMG_MK2', 'Combat MG Mk II', 'mg'},
+    {'WEAPON_GUSENBERG', 'Gusenberg Sweeper', 'mg'},
+    {'WEAPON_SNIPERRIFLE', 'Sniper Rifle', 'sniper'},
+    {'WEAPON_HEAVYSNIPER', 'Heavy Sniper', 'sniper'},
+    {'WEAPON_HEAVYSNIPER_MK2', 'Heavy Sniper Mk II', 'sniper'},
+    {'WEAPON_MARKSMANRIFLE', 'Marksman Rifle', 'sniper'},
+    {'WEAPON_MARKSMANRIFLE_MK2', 'Marksman Rifle Mk II', 'sniper'},
+    {'WEAPON_PRECISIONRIFLE', 'Precision Rifle', 'sniper'},
+    {'WEAPON_RPG', 'RPG', 'launcher'},
+    {'WEAPON_GRENADELAUNCHER', 'Grenade Launcher', 'launcher'},
+    {'WEAPON_GRENADELAUNCHER_SMOKE', 'Smoke Launcher', 'launcher'},
+    {'WEAPON_HOMINGLAUNCHER', 'Homing Launcher', 'launcher'},
+    {'WEAPON_COMPACTLAUNCHER', 'Compact Grenade Launcher', 'launcher'},
+    {'WEAPON_RAILGUN', 'Railgun', 'heavy'},
+    {'WEAPON_RAILGUNXM3', 'Railgun XM3', 'heavy'},
+    {'WEAPON_MINIGUN', 'Minigun', 'mg'},
+    {'WEAPON_RAYMINIGUN', 'Widowmaker', 'mg'},
+    {'WEAPON_RAYCARBINE', 'Unholy Hellbringer', 'rifle'},
+    {'WEAPON_RAYPISTOL', 'Up-n-Atomizer', 'pistol'},
+    {'WEAPON_EMPLAUNCHER', 'Compact EMP Launcher', 'launcher'},
+    {'WEAPON_FIREWORK', 'Firework Launcher', 'launcher'},
+    {'WEAPON_PETROLCAN', 'Jerry Can', 'heavy'},
+}
+for _, item in ipairs(weaponDefinitions) do weaponInfo(item[1], item[2], item[3]) end
+
+local weaponGroups = {
+    [weaponUnsignedHash(GetHashKey('GROUP_PISTOL'))] = 'pistol',
+    [weaponUnsignedHash(GetHashKey('GROUP_SMG'))] = 'smg',
+    [weaponUnsignedHash(GetHashKey('GROUP_RIFLE'))] = 'rifle',
+    [weaponUnsignedHash(GetHashKey('GROUP_SHOTGUN'))] = 'shotgun',
+    [weaponUnsignedHash(GetHashKey('GROUP_SNIPER'))] = 'sniper',
+    [weaponUnsignedHash(GetHashKey('GROUP_MG'))] = 'mg',
+    [weaponUnsignedHash(GetHashKey('GROUP_HEAVY'))] = 'heavy',
+}
+
+local ammoTypes = {}
+local function ammoType(name, display)
+    ammoTypes[weaponUnsignedHash(GetHashKey(name))] = display
+end
+ammoType('AMMO_PISTOL', 'PISTOL AMMO')
+ammoType('AMMO_SMG', 'SMG AMMO')
+ammoType('AMMO_RIFLE', 'RIFLE AMMO')
+ammoType('AMMO_SHOTGUN', 'SHOTGUN SHELLS')
+ammoType('AMMO_SNIPER', 'SNIPER AMMO')
+ammoType('AMMO_MG', 'MG AMMO')
+ammoType('AMMO_RPG', 'ROCKETS')
+ammoType('AMMO_HOMINGLAUNCHER', 'HOMING ROCKETS')
+ammoType('AMMO_GRENADELAUNCHER', 'GRENADES')
+ammoType('AMMO_MINIGUN', 'MINIGUN AMMO')
+ammoType('AMMO_FIREWORK', 'FIREWORKS')
+ammoType('AMMO_RAILGUN', 'RAILGUN AMMO')
+ammoType('AMMO_FLAREGUN', 'FLARES')
+ammoType('AMMO_STUNGUN', 'CHARGES')
+ammoType('AMMO_EMPLAUNCHER', 'EMP GRENADES')
+
+AddEventHandler('ox_inventory:currentWeapon', function(weapon)
+    if type(weapon) ~= 'table' then
+        weaponHudOxCurrent = nil
+    else
+        local hash = tonumber(weapon.hash)
+        if not hash and type(weapon.name) == 'string' then hash = GetHashKey(weapon.name) end
+        weaponHudOxCurrent = hash and {
+            hash = weaponUnsignedHash(hash),
+            label = type(weapon.label) == 'string' and weapon.label or nil,
+            name = type(weapon.name) == 'string' and weapon.name or nil,
+        } or nil
+    end
+    weaponHudLastSignature = nil
+end)
+
+RegisterNUICallback('saveWeaponSettings', function(data, cb)
+    data = type(data) == 'table' and data or {}
+    if type(data.enabled) == 'boolean' then weaponHudEnabled = data.enabled end
+    weaponHudLastSignature = nil
+    cb('ok')
+end)
+
+local function getWeaponReadout(ped, hash)
+    local hashed = weaponUnsignedHash(hash)
+    local known = weaponNames[hashed]
+    local group = weaponGroups[weaponUnsignedHash(GetWeapontypeGroup(hash))] or 'generic'
+    if known then group = known.category end
+
+    local model = known and known.model or nil
+    local title = known and known.label or 'Weapon'
+    if weaponHudOxCurrent and weaponHudOxCurrent.hash == hashed then
+        if weaponHudOxCurrent.name and weaponHudOxCurrent.name:match('^WEAPON_[%w_]+$') then
+            model = weaponHudOxCurrent.name
+        end
+        if weaponHudOxCurrent.label and #weaponHudOxCurrent.label <= 80 then
+            title = weaponHudOxCurrent.label
+        end
+    end
+    if not known and (not weaponHudOxCurrent or weaponHudOxCurrent.hash ~= hashed) then
+        -- GTA provides a localized label for DLC and custom guns when available.
+        if type(GetWeaponDisplayNameFromHash) == 'function' then
+            local key = GetWeaponDisplayNameFromHash(hash)
+            if type(key) == 'string' and key ~= '' and key ~= 'NULL' then
+                local localized = GetLabelText(key)
+                if localized and localized ~= 'NULL' and localized ~= '' then title = localized end
+            end
+        end
+    end
+
+    local success, clip = GetAmmoInClip(ped, hash)
+    local total = math.max(0, tonumber(GetAmmoInPedWeapon(ped, hash)) or 0)
+    local clipMax = math.max(0, tonumber(GetMaxAmmoInClip(ped, hash, true)) or 0)
+    if not success then clip = total end
+    clip = math.max(0, math.min(total, tonumber(clip) or 0))
+    if clipMax == 0 then clipMax = math.max(1, tonumber(GetWeaponClipSize(hash)) or 0, clip) end
+    local reserve = math.max(0, total - clip)
+    local ammoHash = weaponUnsignedHash(GetPedAmmoTypeFromWeapon(ped, hash))
+    local ammoLabel = ammoTypes[ammoHash] or ({
+        pistol = 'PISTOL AMMO', revolver = 'PISTOL AMMO', smg = 'SMG AMMO',
+        shotgun = 'SHOTGUN SHELLS', rifle = 'RIFLE AMMO', sniper = 'SNIPER AMMO',
+        mg = 'MG AMMO', launcher = 'EXPLOSIVES', heavy = 'HEAVY AMMO'
+    })[group] or 'AMMO'
+    if model and weaponHudCfg.AmmoLabelOverrides and type(weaponHudCfg.AmmoLabelOverrides[model]) == 'string' then
+        ammoLabel = weaponHudCfg.AmmoLabelOverrides[model]
+    end
+
+    return {
+        visible = true,
+        weapon = model or '',
+        name = title,
+        category = group,
+        clip = math.floor(clip),
+        reserve = math.floor(reserve),
+        maxClip = math.floor(clipMax),
+        ammoType = ammoLabel,
+        imageEnabled = weaponHudCfg.UseInventoryImages ~= false and GetResourceState('ox_inventory') == 'started',
+    }
+end
+
+CreateThread(function()
+    while true do
+        local ped = PlayerPedId()
+        local allowed = playerLoaded and hudMasterEnabled and weaponHudEnabled
+            and not pauseMenuHiddenHud and not externalHudHidden
+            and ped ~= 0 and DoesEntityExist(ped) and not IsEntityDead(ped)
+        local armed = allowed and IsPedArmed(ped, 4)
+        if armed then
+            local hash = GetSelectedPedWeapon(ped)
+            if weaponUnsignedHash(hash) ~= weaponUnsignedHash(GetHashKey('WEAPON_UNARMED')) then
+                local view = getWeaponReadout(ped, hash)
+                local signature = table.concat({ tostring(weaponUnsignedHash(hash)), view.weapon, view.name, view.category,
+                    tostring(view.clip), tostring(view.reserve), tostring(view.maxClip), view.ammoType, tostring(view.imageEnabled) }, ':')
+                if weaponHudLastSignature ~= signature then
+                    weaponHudLastSignature = signature
+                    sendNUI({ action = 'updateWeapon', data = view })
+                end
+                Wait(120)
+            else
+                armed = false
+            end
+        end
+        if not armed then
+            if weaponHudLastSignature ~= nil then
+                weaponHudLastSignature = nil
+                sendNUI({ action = 'hideWeapon' })
+            end
+            Wait(350)
+        end
+    end
+end)
+
+-- Only replace GTA's built-in weapon counter while our display is enabled.
+-- Never hide the weapon wheel or reticle, and restore native UI on hide/logout.
+CreateThread(function()
+    while true do
+        if playerLoaded and hudMasterEnabled and weaponHudEnabled and weaponHudCfg.HideNativeAmmo ~= false
+            and not pauseMenuHiddenHud and not externalHudHidden and not IsPauseMenuActive()
+            and IsPedArmed(PlayerPedId(), 4) then
+            DisplayAmmoThisFrame(false)
+            HideHudComponentThisFrame(2)
+            Wait(0)
+        else
+            Wait(250)
+        end
+    end
+end)
+
+-- F8 live diagnostic: reports the same native weapon/ammo snapshot used by
+-- the production HUD. Useful when an inventory overrides GTA ammo handling.
+RegisterCommand('rshudweapondebug', function()
+    local ped = PlayerPedId()
+    local selected = GetSelectedPedWeapon(ped)
+    local armed = IsPedArmed(ped, 4)
+    local allowed = playerLoaded and hudMasterEnabled and weaponHudEnabled
+        and not externalHudHidden and not pauseMenuHiddenHud
+    local snapshot = armed and getWeaponReadout(ped, selected) or nil
+    print(('[rs-lilhudlife][WEAPON] %s'):format(json.encode({
+        weaponHash = weaponUnsignedHash(selected),
+        armed = armed,
+        playerLoaded = playerLoaded,
+        hudMasterEnabled = hudMasterEnabled,
+        weaponHudEnabled = weaponHudEnabled,
+        externalHudHidden = externalHudHidden,
+        pauseMenuHiddenHud = pauseMenuHiddenHud,
+        allowed = allowed,
+        ui = snapshot,
+    })))
 end, false)

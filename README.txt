@@ -1,263 +1,125 @@
-RS HUDLife / LilHudLife
-======================
-Reality Sucks RP
-Version 1.4.3
+RS HUDLife / rs-lilhudlife
+==========================
+Reality Sucks RP | Version 1.4.6 | Full editable source
 
-A compact FiveM HUD with ten selectable speedometers, live vehicle telemetry,
-player status rings, money/job/voice information, a configurable F9 menu, a
-vehicle boot/reveal sequence, and optional NOS integration.
-
-SUPPORTED FRAMEWORKS
---------------------
-Official targets for this release:
-- QBCore
-- Qbox / qbx_core
-- ESX Legacy
-
-The HUD also has a standalone/native fallback for vehicle and ped telemetry,
-but full framework money/job/needs integration is tested by code path against
-the three targets above.
-
-Framework selection is controlled by:
-
-    Config.Framework = 'auto'
-
-Allowed values:
-
-    'auto'       Detect Qbox, QBCore, or ESX
-    'qbox'       Force qbx_core/Qbox path
-    'qbcore'     Force QBCore path
-    'esx'        Force ESX path
-    'standalone' Native-only fallback
-
-rs_bridge is optional. When it is running, HUDLife prefers it. Without
-rs_bridge the resource falls back directly to Qbox, QBCore, or ESX.
-
-QBOX NOTES
-----------
-HUDLife supports both common Qbox configurations:
-- QB compatibility bridge enabled: uses the compatible qb-core facade/events.
-- QB compatibility bridge disabled: falls back to native qbx_core player-data
-  exports while continuing to listen to Qbox's documented money/job events.
-
-The HUD does not declare qbx_core as a hard dependency because the same
-resource is also intended to run on QBCore and ESX.
-
-MONEY / INVENTORY AUTO-DETECTION
---------------------------------
-Config.Money.CashAsItem defaults to 'auto'.
-
-Auto mode does not assume that an inventory resource automatically makes cash
-an item.
-
-- qb-inventory:
-  HUDLife uses the cash-as-item exports when that inventory provides them.
-  Stock qb-inventory without those exports falls back to framework cash.
-
-- ox_inventory:
-  HUDLife reads the server's `inventory:accounts` convar. Cash is read from an
-  inventory account only when the configured account is actually present.
-  Standard Qbox/ox_inventory normally maps framework cash to the `money` item.
-
-- Otherwise:
-  HUDLife uses the framework cash balance.
-
-Custom physical-cash servers can override both values:
-
-    Config.Money.CashAsItem = true
-    Config.Money.CashItem = 'your_cash_item'
-
-FEATURES
+OVERVIEW
 --------
-- Ten speedometer layouts:
-  HALO LOGO
-  VEHICLE HEALTH
-  APEX RACE
-  CLASSIC
-  NEON DIGITAL
-  MINIMAL
-  TURBO RPM
-  VOLT EV
-  SURVIVAL ARC
-  SURVIVAL CLUSTER
+RS HUDLife is a configurable FiveM HUD for driving, character status, vehicle
+condition, money/job information, voice and weapon ammunition. Players can
+customize the visual layout in-game and save their preferences.
 
-- Fast live telemetry:
-  speed, RPM, gear/reverse, lights, ignition, seatbelt/harness state.
+MAIN FEATURES
+-------------
+- 10 speedometer layouts: Halo Logo, Vehicle Health, Apex Race, Classic,
+  Neon Digital, Minimal, Turbo RPM, Volt EV, Survival Arc, Survival Cluster.
+- Live vehicle speed, RPM, gear, fuel, lights and seatbelt/harness status.
+- Vehicle condition indicators for engine, body, tires, doors and windows;
+  optional additional mechanical condition integration.
+- Vehicle-specific image library (921 PNG vehicle images included) with
+  class-based silhouette fallback for missing vehicle models.
+- Status display: health, armor, hunger, thirst, stamina, oxygen, and
+  optional nitrous/NOS indicator.
+- Money, bank, job/rank, player ID and voice-related HUD information, with
+  framework-dependent data sources.
+- Weapon HUD: weapon silhouette or optional ox_inventory image, bullets in
+  magazine, spare ammunition, ammo class label and curved ammo meter.
+- Weapon HUD styles: Arc and Minimal. Move, scale, fade and toggle the HUD
+  through the built-in menu. Ammo labels can be customized per weapon.
+- In-game F9 settings menu with draggable layout editor, per-player settings,
+  audio options and vehicle reveal/boot animation.
+- Built-in bridge/adapters for supported frameworks; no external compatibility
+  resource is required.
 
-- Throttled condition telemetry:
-  fuel, engine/body health, burst tires, broken windows, damaged doors, and
-  optional qbx_mechanicjob component health. Slow condition checks are cached
-  for 250 ms so the 20 Hz speed display does not rescan every damage component
-  on every frame update.
-
-- Status HUD:
-  health, armor, hunger, thirst, stamina, oxygen, and NOS support.
-
-- Status sources:
-  GTA/FiveM native values, QBCore/Qbox metadata/events, ESX status events,
-  statebags, client exports, and public compatibility events.
-
-- Money / identity HUD:
-  server label, cash, bank, player ID, job/rank, and live voice state.
-
-- Voice integration:
-  pma-voice range/talking information when available, with safe native fallback.
-
-- NOS integration:
-  statebags, decorators, compatibility events/exports, optional RS Customs
-  integration, and read-only auto-calibration from client-visible NOS configs.
-
-- Persistent player settings:
-  localStorage plus FiveM KVP with bounded/validated NUI settings.
+FRAMEWORK SUPPORT
+-----------------
+Designed for QBCore, Qbox/qbx_core and ESX Legacy; it also has a native-only
+standalone mode. Some display information (e.g. bank, hunger and thirst) must
+come from the active framework or its status system. Behavior may vary with
+custom forks and installed inventory/voice providers.
 
 INSTALLATION
 ------------
-1. Put the folder in your FiveM resources directory as:
-
-       rs-lilhudlife
-
-2. Add this to server.cfg:
+1. Extract the ZIP and put the included `rs-lilhudlife` folder directly into
+   your FiveM server resources directory. Do not rename it.
+2. Add the following to your server.cfg after the framework (if any):
 
        ensure rs-lilhudlife
 
-3. Keep Config.Framework = 'auto' unless you intentionally want to force one
-   framework path.
+3. Leave Config.Framework = 'auto' to detect the framework automatically.
+4. Restart the server/resource. Open the HUD editor with F9 or /rshudlife.
+5. Equip a weapon, fire and reload to check magazine/spare values. Enter a
+   vehicle to verify the speedometer and optional vehicle images.
 
-4. Restart the resource/server.
+CONFIGURATION
+-------------
+- Main defaults: config.lua
+- Framework: Config.Framework = 'auto' | 'qbox' | 'qbcore' | 'esx' | 'standalone'
+- Weapon HUD: Config.WeaponHud (enabled, position, scale, opacity, styles,
+  ammo labels, native ammo hiding and optional ox_inventory artwork)
+- Menu: F9 by default; /rshudlife command
+- Layout: open F9 > LAYOUT and drag the WEAPON marker or adjust X/Y settings
+- Weapon panel: open F9 > WEAPON HUD and set Arc/Minimal, size and visibility
+- Per-player layout choices persist in the player's settings.
 
-There are no mandatory framework dependencies in fxmanifest.lua because the
-same release supports QBCore, Qbox, and ESX.
+WEAPON AMMUNITION DISPLAY
+-------------------------
+Magazine count uses FiveM/GTA weapon natives. Reserve ammunition is native
+weapon total minus current magazine count. Ammo type labels are native
+categories (e.g. RIFLE AMMO), not automatic real-world caliber detection.
+Use Config.WeaponHud.AmmoLabelOverrides with weapon names such as
+WEAPON_CARBINERIFLE if you want a custom label (for example 5.56MM).
+The HUD hides when unarmed, and respects the main HUD visibility settings.
+If ox_inventory is running, it can attempt to display the corresponding
+weapon image; original built-in silhouettes serve as a fallback.
 
 OPTIONAL INTEGRATIONS
 ---------------------
-- rs_bridge
-- ox_inventory
-- qb-inventory
-- pma-voice
-- qbx_mechanicjob
-- qbx_seatbelt
-- ESX status/needs resources
-- RS LS Customs / RS Zombie LS Customs NOS providers
+- ox_inventory or qb-inventory for relevant money/inventory display sources
+- pma-voice for talk/range indicators
+- qbx_mechanicjob for additional mechanical values, when supported
+- qbx_seatbelt or other compatible seatbelt/harness status sources
+- ESX status/needs integrations
+- Configured NOS providers or statebag/event integration
 
-VEHICLE ART
------------
-The runtime can display a vehicle-specific PNG/WEBP when one is present under:
-
-    html/assets/vehicles/<spawnname>.png
-    html/assets/vehicles/<spawnname>.webp
-
-If no specific image is available, the NUI automatically renders its built-in
-vehicle-class silhouette. No vehicle-image pack is required for the HUD to run.
-
-This release includes the creator's curated per-vehicle image library so the
-vehicle reveal can show matching artwork instead of a generic silhouette. Keep
-the filenames matched to spawn codes. For public Cfx/Tebex distribution, only
-add or replace art with assets you created or have permission to redistribute.
-
-F9 MENU
--------
-Default keybind:
-
-    F9
-
-Command:
-
-    /rshudlife
-
-Players can configure speedometer style, positions, scale, units, status
-layout/style, money HUD, audio, NOS display, and boot behavior. Values are
-validated on the Lua side before being applied and saved.
-
-HEALTH / STATUS BRIDGE
-----------------------
-See HEALTH_SYSTEM_BRIDGE.txt for integration examples.
-
-PUBLIC EVENTS / EXPORTS
+CUSTOM STATUS PROVIDERS
 -----------------------
-Examples from another client resource:
+See HEALTH_SYSTEM_BRIDGE.txt for supported display-only events, exports and
+statebag integration. HUDLife does not authorize or modify player account,
+medical, inventory or job data; it renders data from the owning system.
 
-    TriggerEvent('rs-lilhudlife:client:SetStatus', {
-        hunger = 80,
-        thirst = 70,
-        stamina = 95
-    })
+VEHICLE ART LIBRARY
+-------------------
+This package INCLUDES 921 vehicle images in html/assets/vehicles.
+Image filenames use vehicle spawn names, and the HUD falls back to an
+in-browser vehicle-class silhouette when artwork is unavailable.
 
-    TriggerEvent('rs-lilhudlife:client:SetNOS', 75)
+The generated lookup table is at html/js/vehicle-art-index.js. If you add,
+remove or rename vehicle PNG/WEBP files, regenerate this index with:
 
-    exports['rs-lilhudlife']:SetStatus({ hunger = 80, thirst = 70 })
-    exports['rs-lilhudlife']:SetNOS(75)
-    exports['rs-lilhudlife']:RefreshStatus()
+    python tools/build_vehicle_art_index.py
 
-These interfaces affect the local HUD display; they do not grant money, items,
-jobs, permissions, or other server-authoritative state.
+To distribute replacement images, make sure you have the rights to do so.
 
-PERFORMANCE DESIGN
-------------------
-- Speed/RPM/gear/lights update at the configured vehicle interval (50 ms by
-  default).
-- Damage/fuel/mechanical condition scans are cached for 250 ms.
-- Native status polling defaults to 500 ms.
-- Hunger/thirst source polling defaults to 2000 ms.
-- Voice refresh defaults to 120 ms.
-- Expensive NOS provider discovery/calibration runs once and uses cached data.
-- Idle/out-of-vehicle loops back off instead of using permanent Wait(0) loops.
+TROUBLESHOOTING
+---------------
+- Use /rshuddiag for HUD/provider diagnostics.
+- Use /rshudveh in a vehicle to diagnose vehicle name/image lookup.
+- Use /rshudnoscheck in a vehicle for NOS provider details.
+- Use /rshudweapondebug with a firearm equipped to inspect weapon data.
+- If weapon images are missing, use built-in silhouettes or check the optional
+  ox_inventory image paths and the weapon's registered item image.
+- If money/needs display is incorrect, confirm the active framework and
+  inventory/status configuration instead of modifying balances in this HUD.
+- If the game background becomes obstructed by another UI resource, ensure
+  that resource's NUI layer is transparent when closed.
 
-Cfx release posts should still include a real resource-monitor/profiler capture
-from a running server; do not invent a performance number from static review.
+SOURCE AND RIGHTS
+-----------------
+This release includes editable Lua, JavaScript, CSS and HTML, plus visual
+assets and audio. LICENSE covers the MIT-licensed software. Distribution
+rights for separately sourced art, logos, sounds and images may differ;
+verify redistribution permission before publishing the package.
 
-VEHICLE IMAGE LIBRARY
----------------------
-The HUD ships with the creator's curated per-vehicle artwork plus built-in
-silhouette fallbacks for vehicles without a matching spawn-name image. PNG and
-WEBP artwork can be used under `html/assets/vehicles/`; keep filenames matched
-to the vehicle spawn code. See `html/assets/vehicles/README.txt`.
+No runtime activation key or external compatibility dependency is needed.
 
-LICENSE
--------
-This free source release is licensed under the MIT License. See LICENSE.
-
-SUPPORT / RELEASE NOTES
------------------------
-See WHAT_CHANGED_v1.4.3.txt for this production audit/fix update.
-
-Credits: Reality Sucks RP
-
-FREE TEBEX DISTRIBUTION / 10-13-2026 RELEASE HARDENING
---------------------------------------------------------
-This archive is a regular, unencrypted source ZIP. Upload it as a Tebex
-File Download for a free ($0) package. Merely uploading this ZIP does NOT
-protect the files with Cfx Asset Escrow. If you want escrow delivery, use
-the official Cfx Portal escrow workflow on a supported game platform;
-DO NOT advertise this ordinary ZIP as escrow-protected.
-
-The HUD now releases its own NUI mouse/keyboard focus immediately when the
-F9 menu is closed, an inventory hides the HUD, the pause menu takes over,
-a character logs out, or the resource stops. Browser callbacks carry a menu
-session identifier so a delayed close cannot dismiss a newer F9 menu. Radar
-restoration happens only if HUDLife actually forced the radar visible.
-
-F8 DIAGNOSTICS
---------------
-/rshuddiag  Prints framework and money provider, menu, radar, vehicle,
-            pause, external visibility, and boot state. Read-only.
-/rshudveh   Vehicle art / spawn-name diagnostics (in a vehicle).
-/rshudnoscheck  NOS provider diagnostics (in a vehicle).
-/hudmech    Optional qbx_mechanicjob condition diagnostics.
-
-LIVE VALIDATION REQUIRED BEFORE PUBLISHING
------------------------------------------
-- Exercise Qbox (QB bridge on and off), QBCore, ESX and standalone server
-  configurations that you actually intend to advertise.
-- Test Legacy and Enhanced separately, especially voice range, vehicle art
-  name resolution and in-world smoke effects. The static/browser audit is NOT
-  an in-game runtime test or proof of compatibility on every artifact.
-- F9: open, close, spam, pause, hide via SetHUDLifeVisible(false), show again,
-  switch characters, restart the resource and re-run /rshuddiag.
-- Test ox_inventory/qb-inventory money accounts against your server's actual
-  inventory/account configuration; custom cash-as-item configurations vary.
-- Check script/resource monitor in-game. No FPS or resmon claim is supplied.
-- Confirm you own or have redistribution permission for every vehicle PNG,
-  logo, icon and .ogg sound in this archive. The MIT software license cannot
-  grant rights to any third-party artwork without the owner's permission.
-
-See RELEASE_AUDIT_10-13-2026.txt for the exact audit scope and results.
+Reality Sucks RP

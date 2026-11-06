@@ -143,10 +143,13 @@ const RSBoot = (function() {
     //  LOAD VEHICLE IMAGE (hero + reflection share the same source)
     //  Tries webp then png by spawn name, then class key, then unknown.
     // ============================================================
+    let bootArtGeneration = 0;
+
     function loadVehicleImage(vehicleData) {
         const imgEl = document.getElementById('boot-vehicle-img');
         const refEl = document.getElementById('boot-vehicle-reflection');
         if (!imgEl) return;
+        const generation = ++bootArtGeneration;
 
         imgEl.classList.add('hidden-img');
         imgEl.src = '';
@@ -159,7 +162,7 @@ const RSBoot = (function() {
         const k = (vehicleData.classKey && typeof vehicleData.classKey === 'string')
             ? vehicleData.classKey.toLowerCase() : 'car';
 
-        const tries = [];
+        // Only request packaged artwork; unknown addon models use the silhouette.
         // PNG first: the shipped library is 100% .png, so leading with webp
         // made every vehicle log a failed NUI fetch before falling through.
         // webp is still tried, so dropping webp art in later still works.
@@ -171,12 +174,10 @@ const RSBoot = (function() {
         // straight through to a silhouette even when its art was shipped.
         const d = (vehicleData.displayName && typeof vehicleData.displayName === 'string')
             ? vehicleData.displayName.toLowerCase() : null;
-        for (const name of window.RSVehicleArtNames(m, d)) {
-            tries.push(`assets/vehicles/${name}.png`);
-            tries.push(`assets/vehicles/${name}.webp`);
-        }
+        const tries = window.RSVehicleArtPaths(window.RSVehicleArtNames(m, d));
 
         function useSilhouette() {
+            if (generation !== bootArtGeneration) return;
             imgEl.src = vehicleSilhouette(k);
             imgEl.classList.remove('hidden-img');
             imgEl.classList.add('boot-silhouette');
@@ -185,15 +186,18 @@ const RSBoot = (function() {
 
         let ti = 0;
         function tryNext() {
+            if (generation !== bootArtGeneration) return;
             if (ti >= tries.length) { useSilhouette(); return; }
+            const source = tries[ti];
             const t = new Image();
             t.onload = () => {
-                imgEl.src = tries[ti];
+                if (generation !== bootArtGeneration) return;
+                imgEl.src = source;
                 imgEl.classList.remove('hidden-img');
-                if (refEl) { refEl.src = tries[ti]; refEl.classList.remove('hidden-img'); }
+                if (refEl) { refEl.src = source; refEl.classList.remove('hidden-img'); }
             };
-            t.onerror = () => { ti++; tryNext(); };
-            t.src = tries[ti];
+            t.onerror = () => { if (generation !== bootArtGeneration) return; ti++; tryNext(); };
+            t.src = source;
         }
 
         if (tries.length) tryNext(); else useSilhouette();

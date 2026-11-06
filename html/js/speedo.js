@@ -21,6 +21,7 @@ const RSSpeedo = (function() {
     let warnThreshold = 0.75;   // fraction of max speed (Config.Speedo.WarningThreshold)
     let critThreshold = 0.90;   // fraction of max speed (Config.Speedo.CriticalThreshold)
     let lastVehicleKey = '';
+    let vehicleArtGeneration = 0; // invalidate image probes after a fast vehicle switch
     let lastData = {
         speed: 0, maxSpeed: 200, unit: 'MPH', fuel: 100,
         engine: 100, body: 100, rpm: 0, gear: 0,
@@ -446,6 +447,7 @@ const RSSpeedo = (function() {
         const key = spawn + ':' + classKey;
         if (!spawn || key === lastVehicleKey) return;
         lastVehicleKey = key;
+        const generation = ++vehicleArtGeneration;
 
         // PNG first -- see boot.js. The library is all .png; leading with webp
         // logged a failed fetch per vehicle.
@@ -453,20 +455,17 @@ const RSSpeedo = (function() {
         // The candidate list widens past the spawn name for the same reason the
         // boot reveal does: a DLC vehicle whose archetype name does not resolve
         // falls back to its GXT label, which is not the art filename.
-        const attempts = [];
         const display = String(data.displayName || '').toLowerCase();
         const names = window.RSVehicleArtNames
             ? window.RSVehicleArtNames(spawn, display)
             : [spawn];
-        for (const name of names) {
-            attempts.push('assets/vehicles/' + name + '.png');
-            attempts.push('assets/vehicles/' + name + '.webp');
-        }
+        const attempts = window.RSVehicleArtPaths(names);
         let index = 0;
         elements.vehicleImage.classList.add('loading');
         elements.vehicleImage.classList.remove('rs-silhouette');
 
         function useSilhouette() {
+            if (generation !== vehicleArtGeneration) return;
             // No bespoke art for this vehicle: draw the per-class silhouette
             // so the panel always shows something recognizable.
             elements.vehicleImage.src = window.RSVehicleSilhouette
@@ -477,10 +476,12 @@ const RSSpeedo = (function() {
         }
 
         function tryNext() {
+            if (generation !== vehicleArtGeneration) return;
             if (index >= attempts.length) { useSilhouette(); return; }
             const src = attempts[index++];
             const probe = new Image();
             probe.onload = function() {
+                if (generation !== vehicleArtGeneration) return;
                 elements.vehicleImage.src = src;
                 elements.vehicleImage.classList.remove('loading');
                 elements.vehicleImage.classList.remove('rs-silhouette');

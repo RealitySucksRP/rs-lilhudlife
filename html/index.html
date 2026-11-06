@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/menu-v136.css">
 <link rel="stylesheet" href="css/menu-v137.css">
+<link rel="stylesheet" href="css/weapon.css">
 </head>
 <body>
 
@@ -32,6 +33,18 @@
 
 <div id="speedo-container" class="hidden" data-position="bottom-right"></div>
 <div id="status-container" class="hidden" data-position="top-right" data-shape="circle" data-icon-style="vivid"></div>
+
+<div id="weapon-container" class="hidden" data-style="arc" data-show-ammo-type="1" data-show-reserve="1" aria-label="Current weapon ammunition">
+    <div class="rsw-panel">
+        <svg class="rsw-arc" viewBox="0 0 66 121" aria-hidden="true">
+            <path class="rsw-arc-track" d="M52 8 C 3 28 3 94 52 113" pathLength="100"/>
+            <path class="rsw-arc-glow" d="M52 8 C 3 28 3 94 52 113" pathLength="100"/>
+            <path class="rsw-arc-fill" id="weapon-arc-fill" d="M52 8 C 3 28 3 94 52 113" pathLength="100"/>
+        </svg>
+        <div class="rsw-counter"><div class="rsw-numbers"><span id="weapon-clip">30</span><span id="weapon-reserve">19</span></div><span class="rsw-rule"></span><div class="rsw-ammo-type" id="weapon-ammo-type">RIFLE AMMO</div><div id="weapon-bullets" class="rsw-bullets"></div></div>
+        <div class="rsw-weapon"><div class="rsw-art"><img id="weapon-art" class="hidden" alt=""><div id="weapon-art-fallback"></div></div><div id="weapon-name" class="rsw-name">CARBINE RIFLE</div></div>
+    </div>
+</div>
 
 <div id="money-container" class="hidden">
     <div class="sp-logo-wrap" id="sp-logo-wrap">
@@ -122,6 +135,7 @@
                 <button class="menu-nav-btn active" data-tab="display"><span class="menu-nav-icon">⌂</span><span class="znav-text"><b>DASHBOARD</b><i>Overview &amp; Status</i></span></button>
                 <button class="menu-nav-btn" data-tab="status"><span class="menu-nav-icon">♡</span><span class="znav-text"><b>SURVIVAL HUD</b><i>Health, Armor &amp; Needs</i></span></button>
                 <button class="menu-nav-btn" data-tab="speedo"><span class="menu-nav-icon">◴</span><span class="znav-text"><b>SPEEDOMETER</b><i>Speed &amp; Vehicle Info</i></span></button>
+                <button class="menu-nav-btn" data-tab="weapon"><span class="menu-nav-icon">⌖</span><span class="znav-text"><b>WEAPON HUD</b><i>Gun, Ammo &amp; Magazine</i></span></button>
                 <button class="menu-nav-btn" data-tab="vehicle"><span class="menu-nav-icon">▰</span><span class="znav-text"><b>VEHICLE HUD</b><i>Vehicle Features</i></span></button>
                 <button class="menu-nav-btn" data-tab="nos"><span class="menu-nav-icon">♨</span><span class="znav-text"><b>NOS</b><i>Boost Configuration</i></span></button>
                 <button class="menu-nav-btn" data-tab="colors"><span class="menu-nav-icon">◉</span><span class="znav-text"><b>COLORS</b><i>Neon &amp; Theme Colors</i></span></button>
@@ -248,6 +262,32 @@
                         </div>
                     </div>
 
+                    <div class="menu-tab z11-tab" data-tab-body="weapon">
+                        <div class="menu-section zmenu-card z11-card span-12">
+                            <div class="menu-section-title">WEAPON HUD DISPLAY</div>
+                            <div class="menu-toggle-row"><span>SHOW WEAPON HUD</span><label class="menu-toggle"><input type="checkbox" id="menu-weapon-enabled" checked><span class="menu-toggle-slider"></span></label></div>
+                            <div class="menu-toggle-row"><span>SHOW AMMO TYPE</span><label class="menu-toggle"><input type="checkbox" id="menu-weapon-ammo-type" checked><span class="menu-toggle-slider"></span></label></div>
+                            <div class="menu-toggle-row"><span>SHOW SPARE BULLETS</span><label class="menu-toggle"><input type="checkbox" id="menu-weapon-reserve" checked><span class="menu-toggle-slider"></span></label></div>
+                            <div class="menu-toggle-row"><span>USE OX INVENTORY WEAPON IMAGE</span><label class="menu-toggle"><input type="checkbox" id="menu-weapon-inventory-art" checked><span class="menu-toggle-slider"></span></label></div>
+                            <p class="zmenu-note">Magazine rounds are the large number; spare rounds are the smaller one. Weapon artwork uses ox_inventory when available, with local gun silhouettes as a fallback.</p>
+                        </div>
+                        <div class="menu-section zmenu-card z11-card span-12">
+                            <div class="menu-section-title">DESIGN</div>
+                            <div class="menu-option-grid menu-option-grid-2">
+                                <button class="menu-opt-btn active" data-setting="weaponStyle" data-value="arc">ARC + BULLET METER</button>
+                                <button class="menu-opt-btn" data-setting="weaponStyle" data-value="minimal">COMPACT</button>
+                            </div>
+                            <div class="menu-slider-wrap"><span class="zlabel">SIZE</span><input type="range" id="menu-weapon-scale" class="menu-slider" min="65" max="140" value="100"><div class="menu-slider-value" id="menu-weapon-scale-value">100%</div></div>
+                            <div class="menu-slider-wrap"><span class="zlabel">OPACITY</span><input type="range" id="menu-weapon-opacity" class="menu-slider" min="20" max="100" value="95"><div class="menu-slider-value" id="menu-weapon-opacity-value">95%</div></div>
+                        </div>
+                        <div class="menu-section zmenu-card z11-card span-12">
+                            <div class="menu-section-title">POSITION ON SCREEN</div>
+                            <p class="zmenu-note">Go to Layout and drag the WEAPON chip in the screen-position map, or use the Weapon X and Weapon Y sliders. Your position is saved with the rest of your HUD.</p>
+                            <div class="menu-slider-wrap"><span class="zlabel">FROM RIGHT</span><input type="range" id="menu-weapon-x" class="menu-slider" min="0" max="95" value="3"><div class="menu-slider-value" id="menu-weapon-x-value">3%</div></div>
+                            <div class="menu-slider-wrap"><span class="zlabel">FROM BOTTOM</span><input type="range" id="menu-weapon-y" class="menu-slider" min="0" max="95" value="9"><div class="menu-slider-value" id="menu-weapon-y-value">9%</div></div>
+                        </div>
+                    </div>
+
                     <div class="menu-tab z11-tab" data-tab-body="vehicle">
                         <div class="menu-section zmenu-card z11-card span-6">
                             <div class="menu-section-title">BOOT SEQUENCE</div>
@@ -317,6 +357,7 @@
                             <div class="menu-section-title">ELEMENT SCALE</div>
                             <div class="menu-slider-wrap"><span class="zlabel">SPEEDO</span><input type="range" id="menu-layout-speedo-scale" class="menu-slider" min="75" max="110" value="88"><div class="menu-slider-value" id="menu-layout-speedo-scale-value">88%</div></div>
                             <div class="menu-slider-wrap"><span class="zlabel">ICONS</span><input type="range" id="menu-status-scale" class="menu-slider" min="70" max="105" value="88"><div class="menu-slider-value" id="menu-status-scale-value">88%</div></div>
+                            <div class="menu-slider-wrap"><span class="zlabel">WEAPON</span><input type="range" id="menu-layout-weapon-scale" class="menu-slider" min="65" max="140" value="100"><div class="menu-slider-value" id="menu-layout-weapon-scale-value">100%</div></div>
                             <div class="menu-slider-wrap"><span class="zlabel">MONEY</span><input type="range" id="menu-money-scale" class="menu-slider" min="75" max="110" value="100"><div class="menu-slider-value" id="menu-money-scale-value">100%</div></div>
                         </div>
 
@@ -362,7 +403,7 @@
                         </div>
                         <div class="menu-section zmenu-card z11-card span-6">
                             <div class="menu-section-title">SYSTEM INFO</div>
-                            <div class="menu-info-row"><span>VERSION</span><span id="menu-info-version">1.3.7</span></div>
+                            <div class="menu-info-row"><span>VERSION</span><span id="menu-info-version">1.4.5</span></div>
                             <div class="menu-info-row"><span>RESOURCE</span><span id="menu-info-resource">rs-lilhudlife</span></div>
                             <div class="menu-info-row"><span>AUTHOR</span><span>REALITY SUCKS RP</span></div>
                         </div>
@@ -406,7 +447,7 @@
                     <div class="menu-section zmenu-card z11-card z11-map-card">
                         <div class="zpreview-head"><div class="menu-section-title">SCREEN POSITION</div><div class="zpreview-tag" id="zmap-live">DRAG TO PLACE</div></div>
                         <div class="zmenu-note-sm">Drag a block to move the live HUD element.</div>
-                        <div class="zmap" id="zmap"><div class="zmap-mini">MINIMAP</div><div class="zmap-chip zc-speedo" data-el="speedo" id="zmap-speedo">SPEEDO</div><div class="zmap-chip zc-status" data-el="status" id="zmap-status">ICONS</div><div class="zmap-chip zc-money" data-el="money" id="zmap-money">MONEY</div></div>
+                        <div class="zmap" id="zmap"><div class="zmap-mini">MINIMAP</div><div class="zmap-chip zc-speedo" data-el="speedo" id="zmap-speedo">SPEEDO</div><div class="zmap-chip zc-status" data-el="status" id="zmap-status">ICONS</div><div class="zmap-chip zc-money" data-el="money" id="zmap-money">MONEY</div><div class="zmap-chip zc-weapon" data-el="weapon" id="zmap-weapon">WEAPON</div></div>
                         <div class="zmap-readout" id="zmap-readout">Drag a block, or use the sliders below.</div>
                         <div class="zmap-sliders">
                             <div class="menu-slider-wrap"><span class="zlabel">SPD X</span><input type="range" id="menu-speedo-x" class="menu-slider" min="0" max="95" value="20"><div class="menu-slider-value" id="menu-speedo-x-value">20%</div></div>
@@ -415,6 +456,8 @@
                             <div class="menu-slider-wrap"><span class="zlabel">ICON Y</span><input type="range" id="menu-status-y" class="menu-slider" min="0" max="95" value="4"><div class="menu-slider-value" id="menu-status-y-value">4%</div></div>
                             <div class="menu-slider-wrap"><span class="zlabel">CASH X</span><input type="range" id="menu-money-x" class="menu-slider" min="0" max="95" value="1"><div class="menu-slider-value" id="menu-money-x-value">1%</div></div>
                             <div class="menu-slider-wrap"><span class="zlabel">CASH Y</span><input type="range" id="menu-money-y" class="menu-slider" min="0" max="95" value="1"><div class="menu-slider-value" id="menu-money-y-value">1%</div></div>
+                            <div class="menu-slider-wrap"><span class="zlabel">GUN X</span><input type="range" id="menu-layout-weapon-x" class="menu-slider" min="0" max="95" value="3"><div class="menu-slider-value" id="menu-layout-weapon-x-value">3%</div></div>
+                            <div class="menu-slider-wrap"><span class="zlabel">GUN Y</span><input type="range" id="menu-layout-weapon-y" class="menu-slider" min="0" max="95" value="9"><div class="menu-slider-value" id="menu-layout-weapon-y-value">9%</div></div>
                         </div>
                     </div>
                 </aside>
@@ -432,10 +475,12 @@
 
   <!-- Enhanced NUI scale shim; must load before app scripts. -->
 <script src="rs-uiscale.js"></script>
+<script src="js/vehicle-art-index.js"></script>
 <script src="js/boot.js"></script>
 <script src="js/speedo.js"></script>
 <script src="js/status.js"></script>
 <script src="js/money.js"></script>
+<script src="js/weapon.js"></script>
 <script src="js/menu.js"></script>
 <script src="js/app.js"></script>
 <script>

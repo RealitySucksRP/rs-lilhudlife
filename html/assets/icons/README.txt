@@ -11,7 +11,7 @@ The HUD automatically loads these files when present:
   nos-bottle-v128.png = active NOS / nitrous bottle (cache-safe filename)
   nos.png              = legacy fallback copy
 
-These exact user-supplied PNG files are included in v1.2.5.
+These image assets are included in this release.
 They override the built-in SVG art while preserving live ring values,
 colors, low-value effects, scale controls, and F9 visibility toggles.
 

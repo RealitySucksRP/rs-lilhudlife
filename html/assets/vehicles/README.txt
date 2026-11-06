@@ -23,3 +23,7 @@ for vehicles that do not have a matching image.
 
 If you add or replace artwork, use assets you created or have permission to
 redistribute. PNG and WEBP files are both included by the fxmanifest globs.
+
+After adding or removing artwork, run from this resource folder:
+    python tools/build_vehicle_art_index.py
+Then restart rs-lilhudlife. The index prevents NUI from probing missing images.
