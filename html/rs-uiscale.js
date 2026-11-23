@@ -84,8 +84,8 @@
         var root = document.documentElement.style;
         root.setProperty('-webkit-font-smoothing', 'antialiased');
         root.setProperty('text-rendering', 'geometricPrecision');
-        root.setProperty('backface-visibility', 'hidden');
-        root.setProperty('transform', 'translateZ(0)');
+        root.removeProperty('backface-visibility');
+        root.removeProperty('transform');
     }
 
     window.RSUIScale = { apply: apply, get: computeScale };

@@ -65,6 +65,8 @@ const RSMenu = (function() {
         pillVoice: true,
         speedoStyle: 'cluster',
         speedoMinimized: false,
+        menuEffects: 'standard', menuDepth: 'off',
+        themePalette: 'neon', themePrimary: '#28ddff', themeSecondary: '#ff49bd',
         layoutVersion: LAYOUT_VERSION
     };
 
@@ -90,11 +92,62 @@ const RSMenu = (function() {
     let settings = Object.assign({}, defaults);
 
     const SPEEDO_LABELS = {
-        halo: 'HALO LOGO', vehicle: 'VEHICLE HEALTH', apex: 'APEX RACE', classic: 'CLASSIC',
-        neon: 'NEON DIGITAL', minimal: 'MINIMAL', turbo: 'TURBO RPM', volt: 'VOLT EV',
-        survival: 'SURVIVAL ARC', cluster: 'SURVIVAL CLUSTER'
+        halo: 'HALO LOGO', vehicle: 'VEHICLE HEALTH', apex: 'HYPER-APEX', classic: 'SUPERCAR BAY',
+        neon: 'CYBER-PRISM', minimal: 'STEALTH VISOR', turbo: 'GYRO-TURBINE', volt: 'ORBITAL RING',
+        survival: 'JDM DRIFT', cluster: 'CHRONO BLADE',
+        gtneedle: 'GT DUAL', chronograph: 'CHRONO DIAL', muscle: 'MUSCLE V8',
+        hyperneedle: 'HYPER LASER', driftking: 'DRIFT KING', cyberneedle: 'CYBER NEEDLE',
+        rally: 'RALLY PRO', aviation: 'COCKPIT HUD', retro80s: 'RETRO 80S', touge: 'TOUGE TACH',
+        driftpro: 'DRIFT PRO', driftbar: 'SLIDE BALANCE', neonpunk: 'NEON PUNK 3D',
+        cyberbounce: 'CYBER BOUNCE', hyperpulse: 'HYPER PULSE'
     };
     const LAYOUT_LABELS = { horizontal: 'HORIZONTAL', stacked: 'STACKED', compact: 'COMPACT' };
+
+    // Menu-only palettes: these intentionally do not change server-configured HUD status colors.
+    const MENU_PALETTES = Object.freeze({
+        neon: ['#28ddff', '#ff49bd'], ice: ['#61eaff', '#4594ff'],
+        royal: ['#9c78ff', '#ff79c6'], ember: ['#ffbd53', '#ff5e75'],
+        emerald: ['#36eab6', '#82c7ff'], crimson: ['#ff667f', '#ffac57']
+    });
+    function validThemeHex(value, fallback) {
+        return typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : fallback;
+    }
+    function themeRgb(hex) {
+        return [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(', ');
+    }
+    function blendTheme(hex, target, ratio) {
+        const a = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+        const b = [1, 3, 5].map(i => parseInt(target.slice(i, i + 2), 16));
+        return '#' + a.map((v, i) => Math.round(v * (1 - ratio) + b[i] * ratio).toString(16).padStart(2, '0')).join('');
+    }
+    function applyMenuTheme() {
+        if (!overlay) return;
+        const first = validThemeHex(settings.themePrimary, MENU_PALETTES.neon[0]);
+        const second = validThemeHex(settings.themeSecondary, MENU_PALETTES.neon[1]);
+        // Inline variables intentionally win over the inherited default values in menu-v136.css.
+        const vars = {
+            '--z11-cyan': first, '--z11-cyan-2': blendTheme(first, '#ffffff', .35),
+            '--z11-blue': blendTheme(first, '#2959ff', .32),
+            '--z11-pink': second, '--z11-pink-2': blendTheme(second, '#ffffff', .24),
+            '--z11-purple': blendTheme(second, '#8f68ff', .26),
+            '--rs-menu-primary': first, '--rs-menu-secondary': second,
+            '--rs-menu-primary-rgb': themeRgb(first), '--rs-menu-secondary-rgb': themeRgb(second)
+        };
+        Object.entries(vars).forEach(([key, value]) => overlay.style.setProperty(key, value));
+        overlay.querySelectorAll('[data-hud-palette]').forEach(btn => {
+            const selected = btn.dataset.hudPalette === settings.themePalette;
+            btn.classList.toggle('active', selected);
+            btn.setAttribute('aria-pressed', String(selected));
+        });
+        for (const [id, value] of [['menu-theme-primary', first], ['menu-theme-secondary', second]]) {
+            const input = document.getElementById(id);
+            if (input && input.value !== value) input.value = value;
+            const output = document.getElementById(id + '-value');
+            if (output) output.textContent = value.toUpperCase();
+        }
+        const label = document.getElementById('menu-theme-label');
+        if (label) label.textContent = settings.themePalette === 'custom' ? 'CUSTOM THEME' : settings.themePalette.toUpperCase() + ' THEME';
+    }
 
     function clamp(value, min, max, fallback) {
         const n = Number(value);
@@ -126,6 +179,11 @@ const RSMenu = (function() {
         next.weaponShowReserve = next.weaponShowReserve !== false;
         next.weaponUseInventoryArt = next.weaponUseInventoryArt !== false;
         next.speedoMinimized = next.speedoMinimized === true;
+        next.menuEffects = ['off','low','standard','high'].includes(next.menuEffects) ? next.menuEffects : 'standard';
+        next.menuDepth = ['off','medium','high'].includes(next.menuDepth) ? next.menuDepth : 'off';
+        next.themePalette = Object.prototype.hasOwnProperty.call(MENU_PALETTES, next.themePalette) ? next.themePalette : (next.themePalette === 'custom' ? 'custom' : 'neon');
+        next.themePrimary = validThemeHex(next.themePrimary, MENU_PALETTES.neon[0]);
+        next.themeSecondary = validThemeHex(next.themeSecondary, MENU_PALETTES.neon[1]);
 
         // One-time migration from the v1.3.6 bottom-center icon defaults.
         if ((Number(source && source.layoutVersion) || 0) < LAYOUT_VERSION) {
@@ -261,6 +319,7 @@ const RSMenu = (function() {
         }
         // Reflect into the menu controls if they are already built.
         if (initialized) {
+            applyMenuTheme();
             document.querySelectorAll('.menu-opt-btn').forEach(b => {
                 const setting = b.dataset.setting;
                 const value = b.dataset.value;
@@ -281,6 +340,12 @@ const RSMenu = (function() {
     //  APPLY SETTINGS (to UI + speedo)
     // ============================================================
     function applySettings() {
+        applyMenuTheme();
+        // Visual preferences live with the existing per-player HUD settings.
+        if (overlay) {
+            overlay.dataset.fx = settings.menuEffects;
+            overlay.dataset.depth = settings.menuDepth;
+        }
         // Update menu controls to reflect current state
         document.querySelectorAll('.menu-opt-btn').forEach(b => {
             const setting = b.dataset.setting;
@@ -777,6 +842,36 @@ const RSMenu = (function() {
             }
         }
 
+        // Menu theme controls: preview live, save with existing per-player KVP.
+        overlay.querySelectorAll('[data-hud-palette]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const preset = MENU_PALETTES[btn.dataset.hudPalette];
+                if (!preset) return;
+                settings.themePalette = btn.dataset.hudPalette;
+                settings.themePrimary = preset[0];
+                settings.themeSecondary = preset[1];
+                applyMenuTheme();
+                save();
+            });
+        });
+        for (const [id, key] of [['menu-theme-primary', 'themePrimary'], ['menu-theme-secondary', 'themeSecondary']]) {
+            const input = document.getElementById(id);
+            if (input) input.addEventListener('input', () => {
+                settings[key] = validThemeHex(input.value, settings[key]);
+                settings.themePalette = 'custom';
+                applyMenuTheme();
+                save();
+            });
+        }
+        const themeReset = document.getElementById('menu-theme-reset');
+        if (themeReset) themeReset.addEventListener('click', () => {
+            settings.themePalette = 'neon';
+            settings.themePrimary = MENU_PALETTES.neon[0];
+            settings.themeSecondary = MENU_PALETTES.neon[1];
+            applyMenuTheme();
+            save();
+        });
+
         // Tab switching
         overlay.dataset.activeTab = 'display';
         document.querySelectorAll('.menu-nav-btn').forEach(btn => {
@@ -800,6 +895,11 @@ const RSMenu = (function() {
                 btn.classList.add('active');
                 settings[setting] = value;
                 applySettings();
+                // Effects are client-side only; do not emit a gameplay config RPC.
+                if (setting === 'menuEffects' || setting === 'menuDepth') {
+                    save();
+                    return;
+                }
                 // Route sync to the right endpoint based on setting name
                 if (setting.startsWith('status') || setting === 'iconLayout') {
                     syncStatusToLua();
@@ -1118,8 +1218,8 @@ const RSMenu = (function() {
         }
 
         // Reset
-        const resetBtn = document.getElementById('menu-reset');
-        if (resetBtn) {
+        const resetButtons = [document.getElementById('menu-reset'), document.getElementById('menu-reset-footer')].filter(Boolean);
+        resetButtons.forEach(resetBtn => {
             resetBtn.addEventListener('click', () => {
                 settings = Object.assign({}, defaults);
                 applySettings();
@@ -1131,7 +1231,7 @@ const RSMenu = (function() {
                 syncNosToLua();
                 syncWeaponToLua();
             });
-        }
+        });
 
         // Save & Close
         const saveBtn = document.getElementById('menu-save');

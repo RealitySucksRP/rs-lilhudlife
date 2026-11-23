@@ -1,0 +1,96 @@
+### For other developers
+
+Use the same integration principle with any custom boost system:
+
+**Expose the actual controller state through a documented API, then let HUD resources consume that state without altering the original boost mechanics.**
+
+The current Mods4Whipz percentage represents its existing timed boost and cooldown cycle, not a persistent refillable NOS tank.
+
+### Credits
+
+Developed for **Reality Sucks RP**.
+
+This integration was statically checked and subsequently confirmed working during an in-game test. Other server configurations and NOS providers should be tested independently.
+
+YOU DO NOT NEED MY OTHER RESOURCES TO MAKE THIS WORK. BELOW IS JUST AN EXAMPLE. 
+
+---------------------------------------
+
+## NOS Telemetry Integration — RS Mods4Whipz and RS HUDLife
+
+**Developer: Reality Sucks RP**
+
+### Overview
+
+RS Mods4Whipz and RS HUDLife now support synchronized nitrous telemetry.
+
+Previously, NOS could activate correctly on the vehicle while the speedometer and Survival HUD bottle displayed 0%. This happened because the NOS controller did not expose its live charge information to HUDLife.
+
+We resolved this by creating a **client-side telemetry export**, allowing multiple HUD components to receive the same NOS information directly from the resource controlling the boost.
+
+### How it works
+
+**RS Mods4Whipz → NOS Telemetry Export → RS HUDLife → Speedometers and Survival HUD**
+
+RS Mods4Whipz remains responsible for NOS installation, activation, boost behavior, burst timing, and cooldown.
+
+RS HUDLife reads those values without controlling or modifying the boost system.
+
+### Available client exports
+
+```lua
+exports['rs-mods4whipz']:GetNitrousState(vehicle)
+exports['rs-mods4whipz']:GetNitrousLevel(vehicle)
+exports['rs-mods4whipz']:GetNOSLevel(vehicle)
+exports['rs-mods4whipz']:IsNitrousBoosting(vehicle)
+```
+
+The `GetNitrousState` export provides:
+
+- `installed` — whether NOS is installed
+- `active` — whether NOS is boosting
+- `level` — displayed charge percentage from 0 to 100
+- `mode` — absent, ready, boosting, or cooldown
+- Remaining burst and cooldown times
+- Provider identification
+
+### Important integration rule
+
+**The NOS controller should be the authoritative source.**
+
+A HUD should not invent its own charge consumption when the actual NOS provider can supply it.
+
+An installed NOS bottle with 0% charge must remain visible. Zero charge does not mean no bottle is installed.
+
+### Installation
+
+Replace the integration files in their matching resources:
+
+```text
+rs-mods4whipz/client.lua
+rs-lilhudlife/client/main.lua
+```
+
+Restart from the server console:
+
+```text
+restart rs-mods4whipz
+restart rs-lilhudlife
+```
+
+No additional dependencies or SQL migrations are required for this integration.
+
+### Testing
+
+Install NOS through RS Mods4Whipz, enter the vehicle, and activate boost.
+
+Run `nosdebug` in the FiveM F8 console to inspect the current provider, installed state, boost activity, and charge reading.
+
+Confirm that:
+
+1. The speedometer NOS bar decreases while boosting.
+2. The Survival HUD NOS bottle receives the same value.
+3. The display can reach 0% without hiding an installed bottle.
+4. The charge indicator recovers during cooldown.
+5. Other NOS providers can still operate where Mods4Whipz NOS is not installed.
+

@@ -8,6 +8,7 @@ local currentVehicleClass = nil
 local currentVehicleModel = nil
 local currentVehicleInfo = nil
 local inVehicle = false
+local weaponHudLastSignature = nil -- shared by vehicle entry and weapon polling
 local bootPlayed = false
 local bootInProgress = false
 local bootPtfxHandle = nil
@@ -73,6 +74,7 @@ local statusData = {
     stamina = 100,
     oxygen = 100,
     nos = 0,
+    showNos = false, -- installed bottle remains visible even when its charge is 0
     showOxygen = false,
 }
 
@@ -118,6 +120,12 @@ local function requestNativeQboxPlayerData()
     nativeQboxRequestToken = nativeQboxRequestToken + 1
     TriggerServerEvent('rs-lilhudlife:server:requestQboxPlayerData', nativeQboxRequestToken)
 end
+-- Shared NOS detection state: live readings are authoritative, installed-only
+-- data uses the visual estimator. No external NOS control is modified.
+local nosSimActive = false
+local nosRealLevelUntil = 0
+local simulateNosLevel
+
 local qbMechanicNosPollPending = false
 local qbMechanicNosLastPoll = 0
 local qbMechanicNosRequestId = 0
@@ -318,7 +326,7 @@ local function getVehicleData(vehicle)
     -- which used to drop straight through to the GXT label -- so 'polcoquette4'
     -- was looked up as 'coquet4', found no art, and the panel fell back to a
     -- silhouette. Validate the archetype against the model hash, and when it
-    -- fails ask the available framework's vehicle registry before settling
+    -- fails ask the framework's own registry through rs_bridge before settling
     -- for the label.
     local spawnName
     local okArch, archName = pcall(GetEntityArchetypeName, vehicle)
@@ -643,6 +651,25 @@ local function getSpeedData(vehicle)
     local reverse = localVelocity.y < -0.15
         or (gear == 0 and speed <= 3 and IsControlPressed(0, 72) and not IsControlPressed(0, 71))
 
+    -- Live drift / slip-angle & traction balance telemetry
+    local lateralSpeed = math.abs(localVelocity.x)
+    local forwardSpeed = localVelocity.y
+    local airborne = IsEntityInAir(vehicle)
+    local driftAngle = 0
+    local drifting = false
+    local driftDir = 0
+    local driftBalance = 0 -- -100 (left) .. 0 (neutral) .. +100 (right)
+    if not airborne and speedMs > 4.2 and forwardSpeed > 1.0 and lateralSpeed > 1.75 then
+        driftAngle = math.floor(math.deg(math.atan(lateralSpeed, math.max(0.5, forwardSpeed))) + 0.5)
+        if driftAngle >= 9 and driftAngle <= 84 then
+            drifting = true
+            driftDir = localVelocity.x >= 0 and 1 or -1
+            driftBalance = math.floor(math.max(-100, math.min(100, (localVelocity.x / math.max(4.0, speedMs)) * 135)) + 0.5)
+        else
+            driftAngle = 0
+        end
+    end
+
     local _, lightsOn, highBeams = GetVehicleLightsState(vehicle)
     local engineRunning = GetIsVehicleEngineRunning(vehicle)
 
@@ -687,6 +714,10 @@ local function getSpeedData(vehicle)
         cooling = condition.cooling,
         fuelSystem = condition.fuelSystem,
         mechanicLinked = condition.mechanicLinked,
+        drifting = drifting,
+        driftAngle = driftAngle,
+        driftDir = driftDir,
+        driftBalance = driftBalance,
     }
 end
 
@@ -821,8 +852,9 @@ local function applyStatusPayload(payload, source, push)
 end
 
 -- Resolves the framework facade used for player data, money and job.
--- Uses native QB compatibility, Qbox, or ESX providers, then standalone.
--- Detection is capability-based and handled within this resource.
+-- rs_bridge is preferred, then QB compatibility, native Qbox, direct ESX,
+-- and finally standalone. Detection is capability-based rather than tied to
+-- one framework resource name.
 local function normalizeESXPlayerData(data)
     data = type(data) == 'table' and data or {}
     local cash = tonumber(data.money) or 0
@@ -867,6 +899,17 @@ local function initQBCoreOnce()
         return false
     end
 
+    -- Preferred path: rs_bridge already normalizes Qbox, QBCore and ESX.
+    if requested == 'auto' or requested == 'qbox' or requested == 'qbcore' or requested == 'esx' then
+        local framework = RSHUDBridge and RSHUDBridge.Framework()
+        if framework and (requested == 'auto' or requested == framework) then
+            QBCore = RSHUDBridge.Core
+            detectedFramework = framework
+            debug(('framework resolved via rs_bridge: %s'):format(framework))
+            return true
+        end
+    end
+
     -- Qbox deliberately has no resource folder named `qb-core`, but its QB bridge
     -- still provides exports['qb-core']:GetCoreObject(). Therefore do not gate this
     -- call on GetResourceState('qb-core') -- pcall is the correct feature test.
@@ -909,7 +952,7 @@ local function initQBCoreOnce()
         return true
     end
 
-    -- Direct ESX integration through es_extended's documented exports.
+    -- Direct ESX fallback so rs_bridge is optional rather than secretly required.
     if requested == 'auto' or requested == 'esx' then
         if GetResourceState('es_extended') == 'started' then
             local ok, ESX = pcall(function() return exports['es_extended']:getSharedObject() end)
@@ -943,6 +986,7 @@ local function initQBCoreOnce()
 end
 
 local FRAMEWORK_RESOURCES = {
+    rs_bridge = true,
     ['qb-core'] = true,
     qbx_core = true,
     es_extended = true,
@@ -975,8 +1019,9 @@ local function queueFrameworkRefresh()
     end)
 end
 
--- Frameworks are optional and detected internally; refresh providers on
--- framework start/stop without requiring a HUD restart.
+-- Framework/bridge resources are optional, so no hard dependency belongs in
+-- fxmanifest.lua. Re-resolve the provider when one starts/stops instead of
+-- requiring a HUD restart after framework maintenance.
 AddEventHandler('onClientResourceStart', function(resource)
     if FRAMEWORK_RESOURCES[resource] then queueFrameworkRefresh() end
 end)
@@ -1169,6 +1214,7 @@ local function normalizeNosValue(value)
         raw = current
     end
 
+    if raw == nil then return nil end
     return normalizeStatusValue(raw, nil)
 end
 
@@ -1179,14 +1225,22 @@ local function pullVehicleNosStatus(vehicle, push)
     end
 
     local found = nil
+    local foundKey = nil
+    local vehicleKeys = {}
+    for _, key in ipairs(cfg.VehicleStateKeys or {}) do vehicleKeys[#vehicleKeys + 1] = key end
+    for _, key in ipairs({ 'hasnitro', 'hasNitro', 'hasNitrous',
+        'nitrousInstalled', 'nitroInstalled', 'nosInstalled' }) do
+        vehicleKeys[#vehicleKeys + 1] = key
+    end
 
     if type(Entity) == 'function' then
         local ok, entityRef = pcall(Entity, vehicle)
         if ok and entityRef and entityRef.state then
-            for _, key in ipairs(cfg.VehicleStateKeys or {}) do
+            for _, key in ipairs(vehicleKeys) do
                 local stateOk, value = pcall(function() return entityRef.state[key] end)
                 if stateOk and value ~= nil then
                     found = value
+                    foundKey = key
                     break
                 end
             end
@@ -1222,9 +1276,45 @@ local function pullVehicleNosStatus(vehicle, push)
     end
 
     if found == nil then return false end
+    local installedOnly = type(found) == 'boolean'
+        or (type(foundKey) == 'string' and
+            (foundKey:lower():match('^has') or foundKey:lower():match('installed$')) ~= nil)
+    if type(found) == 'table' then
+        installedOnly = found.installed ~= nil and found.current == nil
+            and found.amount == nil and found.level == nil and found.charge == nil
+            and found.remaining == nil and found.percent == nil
+        if installedOnly then found = found.installed end
+    end
     local percent = normalizeNosValue(found)
     if percent == nil then return false end
+    if percent <= 0 and not installedOnly and type(IsNitrousActive) == 'function'
+        and not statusData.showNos then
+        local ok, active = pcall(IsNitrousActive, vehicle)
+        if ok and active == true then
+            -- This may be an unrelated empty provider while native nitrous is
+            -- visibly active; let the native-based estimator take precedence.
+            return false
+        end
+    end
+    if installedOnly and percent <= 0 then
+        -- An unavailable/false entitlement is not proof that another provider
+        -- has no bottle; never overwrite a recent real value with this zero.
+        return false
+    end
+    local wasVisible = statusData.showNos
+    if percent > 0 then statusData.showNos = true end
+    if installedOnly then
+        if GetGameTimer() >= nosRealLevelUntil then
+            nosSimActive = true
+            percent = simulateNosLevel(vehicle) or percent
+        end
+    else
+        -- A numeric charge belongs to the actual provider, not the estimator.
+        nosRealLevelUntil = GetGameTimer() + 1100
+        nosSimActive = false
+    end
     local changed = setStatusExact('nos', percent)
+    changed = (statusData.showNos ~= wasVisible) or changed
     if push and changed then pushStatus() end
     return changed
 end
@@ -1346,52 +1436,83 @@ local function decodeNosTable(value)
     return nil
 end
 
-local function extractRSCustomsNosValue(value, depth)
+-- Returns (percent, installedOnly). A static NOS entitlement is NOT a live
+-- charge reading. Keep the distinction all the way to the speedometer; this
+-- was why some installations stayed at 100%/0% despite visible NOS effects.
+local function extractRSCustomsNosValue(value, depth, nosContext)
     depth = tonumber(depth) or 0
     if depth > 4 or value == nil then return nil end
 
     if type(value) == 'boolean' then
-        return value and 100 or 0
+        return value and 100 or 0, true
     end
 
     if type(value) == 'number' then
-        return normalizeNosValue(value)
+        if value == 0 or value == 1 then
+            return value == 1 and 100 or 0, true
+        end
+        return normalizeNosValue(value), false
     end
 
     local data = decodeNosTable(value)
     if not data then return nil end
 
-    -- Prefer an actual live amount/percentage when a newer build provides one.
+    -- A real charge, where published, takes precedence over installation data.
+    -- Generic 'level' and 'current' belong only to an actual NOS sub-object,
+    -- never the top-level vehicle-properties table (which has unrelated fields).
     local levelKeys = {
         'nosLevel', 'nos_level', 'nitroLevel', 'nitro_level',
         'nitrousLevel', 'nitrous_level', 'nosAmount', 'nos_amount',
         'nitroAmount', 'nitro_amount', 'nitrousAmount', 'nitrous_amount',
         'charge', 'remaining', 'percent', 'pct'
     }
+    if nosContext then
+        levelKeys[#levelKeys + 1] = 'level'
+        levelKeys[#levelKeys + 1] = 'current'
+        levelKeys[#levelKeys + 1] = 'amount'
+        levelKeys[#levelKeys + 1] = 'value'
+    end
     for _, key in ipairs(levelKeys) do
         if data[key] ~= nil then
-            local percent = normalizeNosValue(data[key])
-            if percent ~= nil then return percent end
+            local raw = data[key]
+            local maximum = tonumber(data.max or data.maximum or data.capacity or data.maxAmount)
+            local percent = maximum and maximum > 0 and tonumber(raw)
+                and math.max(0, math.min(100, tonumber(raw) / maximum * 100))
+                or normalizeNosValue(raw)
+            if percent ~= nil then return percent, false end
         end
     end
 
-    -- Current RS Customs stores NOS as an installed/refillable special-part
-    -- entitlement. There is no separate consumable tank amount, so installed
-    -- means the HUD should show a full NOS bottle instead of a false 0%.
+    -- A nested NOS part may expose { installed = true } without a level.
+    if nosContext then
+        for _, key in ipairs({ 'installed', 'enabled', 'hasNitrous', 'hasNitro' }) do
+            if data[key] ~= nil then
+                local v = data[key]
+                if type(v) == 'boolean' or tonumber(v) ~= nil then
+                    return (v == true or (tonumber(v) or 0) > 0) and 100 or 0, true
+                end
+            end
+        end
+    end
+
     local installedKeys = {
         'nitrous', 'nos', 'nitro', 'hasNitrous', 'has_nitrous',
-        'hasNitro', 'has_nitro', 'nitrousInstalled', 'nitrous_installed',
+        'hasNitro', 'has_nitro', 'hasnitro', 'nitrousInstalled', 'nitrous_installed',
         'nosInstalled', 'nos_installed'
     }
     for _, key in ipairs(installedKeys) do
         local candidate = data[key]
         if candidate ~= nil then
             if type(candidate) == 'table' or type(candidate) == 'string' then
-                local nested = extractRSCustomsNosValue(candidate, depth + 1)
-                if nested ~= nil then return nested end
+                local percent, installedOnly = extractRSCustomsNosValue(candidate, depth + 1, true)
+                if percent ~= nil then return percent, installedOnly end
             end
-            if type(candidate) == 'boolean' then return candidate and 100 or 0 end
-            if tonumber(candidate) ~= nil then return tonumber(candidate) ~= 0 and 100 or 0 end
+            if type(candidate) == 'boolean' then return candidate and 100 or 0, true end
+            if tonumber(candidate) ~= nil then
+                local n = tonumber(candidate)
+                if n == 0 or n == 1 then return n == 1 and 100 or 0, true end
+                return normalizeNosValue(n), false
+            end
         end
     end
 
@@ -1401,8 +1522,8 @@ local function extractRSCustomsNosValue(value, depth)
     }
     for _, key in ipairs(nestedKeys) do
         if data[key] ~= nil then
-            local nested = extractRSCustomsNosValue(data[key], depth + 1)
-            if nested ~= nil then return nested end
+            local percent, installedOnly = extractRSCustomsNosValue(data[key], depth + 1, false)
+            if percent ~= nil then return percent, installedOnly end
         end
     end
 
@@ -1439,8 +1560,51 @@ end
 -- up: it just works. If a NOS script DOES publish a real level, that
 -- always wins and this is never used.
 -- ============================================================
-local nosSim = { activeSince = 0, cooldownUntil = 0, vehicle = 0, level = 100 }
-local nosSimActive = false   -- true while the HUD is deriving the level itself
+local nosSim = { activeSince = 0, cooldownUntil = 0, vehicle = 0, level = 100, lastTick = 0 }
+local nosExternalUpdateUntil = 0 -- recent real charge event overrides installed-only simulation
+-- rs-mods4whipz owns its built-in NOS input, burst timer and cooldown.
+-- Prefer its explicit per-vehicle charge telemetry to old LS Customs installed-
+-- only flags or the HUD's button-based estimate. This function is read-only:
+-- HUDLife never changes Mods4Whipz boost behavior or vehicle handling.
+local mods4WhipzNosHandled = false
+local mods4WhipzNosLastPoll = 0
+local function pullMods4WhipzNosStatus(vehicle, push, force)
+    local bridge = Config.NOSBridge or {}
+    if bridge.Enabled == false or not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then
+        mods4WhipzNosHandled = false
+        return false
+    end
+    if GetResourceState('rs-mods4whipz') ~= 'started' then
+        mods4WhipzNosHandled = false
+        return false
+    end
+
+    local now = GetGameTimer()
+    if not force and mods4WhipzNosHandled and now - mods4WhipzNosLastPoll < 60 then
+        return true
+    end
+    mods4WhipzNosLastPoll = now
+    local ok, reading = callVehicleExport('rs-mods4whipz', 'GetNitrousState', vehicle)
+    if not ok or type(reading) ~= 'table' or reading.installed ~= true then
+        mods4WhipzNosHandled = false
+        return false -- no Mods4Whipz bottle: let other providers work as before
+    end
+    local level = tonumber(reading.level)
+    if not level or level ~= level then return false end
+
+    -- Even 0% is a REAL reading for an installed bottle. The survival bottle
+    -- must stay visible at zero and every speedometer must share this level.
+    nosSimActive = false
+    nosRealLevelUntil = now + 350
+    nosExternalUpdateUntil = now + 350
+    local wasVisible = statusData.showNos
+    statusData.showNos = true
+    local changed = setStatusExact('nos', level)
+    mods4WhipzNosHandled = true
+    if push and (changed or not wasVisible) then pushStatus() end
+    return true
+end
+
 
 -- ============================================================
 -- AUTO-DISCOVERY + AUTO-CALIBRATION
@@ -1464,7 +1628,7 @@ local NOS_CONFIG_FILES = {
 }
 
 -- Name fragments that suggest a resource might provide NOS.
-local NOS_NAME_HINTS = { 'custom', 'nos', 'nitro', 'tuner', 'mechanic', 'garage', 'performance' }
+local NOS_NAME_HINTS = { 'custom', 'nos', 'nitro', 'tuner', 'mechanic', 'garage', 'performance', 'whipz' }
 
 local function looksLikeNosResource(name)
     local lower = string.lower(name or '')
@@ -1553,7 +1717,25 @@ local function ensureNosCalibrated()
     debug('No NOS config found to calibrate from; using Config.NOSBridge.Simulate values')
 end
 
-local function simulateNosLevel(vehicle)
+local function isNitrousActive(vehicle)
+    if not vehicle or vehicle == 0 then return false end
+    if type(IsNitrousActive) == 'function' then
+        local ok, active = pcall(IsNitrousActive, vehicle)
+        if ok and active == true then return true end
+    end
+    if type(Entity) == 'function' then
+        local ok, ref = pcall(Entity, vehicle)
+        if ok and ref and ref.state then
+            for _, key in ipairs({ 'nitrousActive', 'nitroActive', 'nosActive', 'boostActive', 'isNitrousActive' }) do
+                local valid, active = pcall(function() return ref.state[key] end)
+                if valid and active == true then return true end
+            end
+        end
+    end
+    return false
+end
+
+simulateNosLevel = function(vehicle)
     local bridge = Config.NOSBridge or {}
     local cfg = bridge.Simulate or {}
     if bridge.Enabled == false or cfg.Enabled == false then return nil end
@@ -1561,52 +1743,79 @@ local function simulateNosLevel(vehicle)
 
     local now = GetGameTimer()
 
-    -- Changing vehicle refills the bottle.
+    -- Keep per-vehicle simulation independent; a different vehicle must not
+    -- inherit a previous car's NOS state or a large first-frame elapsed time.
     if nosSim.vehicle ~= vehicle then
         nosSim.vehicle = vehicle
         nosSim.activeSince, nosSim.cooldownUntil = 0, 0
         nosSim.level = 100
+        nosSim.lastTick = now
     end
 
-    -- Timings read from the server's own NOS script win over the config
-    -- defaults, so the drain always matches the real boost.
+    -- This is a VISUAL estimate only when the provider reports installation
+    -- but no live charge. Real level exports/events take precedence.
     ensureNosCalibrated()
 
-    local maxBurst   = nosCalib.maxBurst or tonumber(cfg.MaxBurstMs) or 4500
-    local cooldownMs = nosCalib.cooldown or tonumber(cfg.CooldownMs) or 2500
-    local control    = nosCalib.control  or tonumber(cfg.Control)    or 21
-
+    local maxBurst   = math.max(100, nosCalib.maxBurst or tonumber(cfg.MaxBurstMs) or 4500)
+    local cooldownMs = math.max(100, nosCalib.cooldown or tonumber(cfg.CooldownMs) or 2500)
+    local control    = nosCalib.control or tonumber(cfg.Control) or 21
     local requireAccel = cfg.RequireAccelerate ~= false
     if nosCalib.requireAccel ~= nil then requireAccel = nosCalib.requireAccel end
 
     local ped = PlayerPedId()
     local isDriver = GetPedInVehicleSeat(vehicle, -1) == ped
-    local pressed = isDriver and IsControlPressed(0, control)
-    if requireAccel then
-        pressed = pressed and IsControlPressed(0, 71)
+    local function held(code)
+        return IsControlPressed(0, code) or IsDisabledControlPressed(0, code)
     end
+    local pressed = isDriver and held(control)
+    if requireAccel then pressed = pressed and held(71) end
+    -- Real boost activation outranks the guessed key binding, including Xbox
+    -- or scripts using their own registered key mappings.
+    pressed = isDriver and (isNitrousActive(vehicle) or pressed)
 
-    if now < (nosSim.cooldownUntil or 0) then
-        -- Refilling after a spent bottle.
-        local remaining = nosSim.cooldownUntil - now
-        nosSim.level = 100.0 - ((remaining / cooldownMs) * 100.0)
-    elseif pressed then
-        if nosSim.activeSince == 0 then nosSim.activeSince = now end
-        local elapsed = now - nosSim.activeSince
-        if elapsed <= maxBurst then
-            nosSim.level = 100.0 - ((elapsed / maxBurst) * 100.0)
-        else
-            nosSim.cooldownUntil = now + cooldownMs
-            nosSim.activeSince = 0
-            nosSim.level = 0
-        end
+    local elapsed = math.max(0, math.min(250, now - (nosSim.lastTick or now)))
+    nosSim.lastTick = now
+    if pressed then
+        nosSim.level = math.max(0, nosSim.level - (elapsed / maxBurst * 100))
     else
-        -- Released before burning out: bottle is ready again.
-        nosSim.activeSince = 0
-        nosSim.level = 100
+        -- Smooth refill after ANY release, including partial NOS use; the old
+        -- code snapped back to 100% on release and looked broken.
+        nosSim.level = math.min(100, nosSim.level + (elapsed / cooldownMs * 100))
     end
 
     return math.max(0, math.min(100, math.floor(nosSim.level + 0.5)))
+end
+
+-- Convert a provider response into a displayed level. A boolean/special part
+-- entitlement activates the animated fallback; a genuine numeric charge must
+-- not be replaced with a guessed value.
+local function resolveRSCustomsReading(value, vehicle, installedPercent, forceInstalled)
+    local percent, installedOnly = extractRSCustomsNosValue(value, 0, false)
+    if percent == nil then return nil end
+    if forceInstalled then installedOnly = true end
+
+    if installedOnly then
+        if percent <= 0 then
+            return 0, false
+        end
+        if GetGameTimer() < nosExternalUpdateUntil then
+            -- Fresh explicit SetNOS / UpdateNitrous data is authoritative,
+            -- even while a separate customs export reports only "installed".
+            nosSimActive = false
+            nosSim.vehicle = vehicle
+            nosSim.level = math.max(0, math.min(100, statusData.nos))
+            nosSim.lastTick = GetGameTimer()
+            return statusData.nos, true
+        end
+        local simulated = simulateNosLevel(vehicle)
+        nosSimActive = simulated ~= nil
+        -- The second return value distinguishes a truly absent bottle from a
+        -- still-installed bottle that happens to have drained all the way to 0.
+        return simulated or installedPercent, true
+    end
+
+    nosSimActive = false
+    return percent, false
 end
 
 local function pullRSCustomsNosStatus(vehicle, push, force)
@@ -1623,11 +1832,15 @@ local function pullRSCustomsNosStatus(vehicle, push, force)
 
     local resources = cfg.Resources or { 'rs-lscustoms', 'rs-zombielscustoms' }
     local installedPercent = tonumber(cfg.InstalledPercent) or 100
+    local sawEmptyReading = false
 
     for _, resourceName in ipairs(resources) do
         if GetResourceState(resourceName) == 'started' then
             rsCustomsNosLastPoll = now
             local percent = nil
+            local installedBottle = false
+            local numericChargeReading = false
+            local bottleConfirmed = false
 
             -- Newer/custom builds may expose a real charge value.
             for _, exportName in ipairs(cfg.LevelExports or {
@@ -1636,27 +1849,29 @@ local function pullRSCustomsNosStatus(vehicle, push, force)
                 local ok, value = callVehicleExport(resourceName, exportName, vehicle)
                 if ok and value ~= nil then
                     percent = normalizeNosValue(value)
-                    if percent ~= nil then nosSimActive = false break end
+                    if percent ~= nil then
+                        numericChargeReading = true
+                        nosSimActive = false
+                        break
+                    end
                 end
             end
 
             -- Accepted RS Customs baseline export. This only reports whether a
             -- bottle is INSTALLED, so on its own the ring would sit at 100%.
             -- Derive the live charge locally instead.
+            local hasNitrousReportedEmpty = false
             if percent == nil then
                 local ok, installed = callVehicleExport(resourceName, cfg.HasExport or 'HasNitrous', vehicle)
                 if ok and installed ~= nil then
-                    if type(installed) == 'boolean' then
-                        if installed then
-                            percent = simulateNosLevel(vehicle) or installedPercent
-                            nosSimActive = percent ~= nil
-                        else
-                            percent = 0
-                            nosSimActive = false
-                        end
-                    else
-                        local parsed = extractRSCustomsNosValue(installed, 0)
-                        if parsed ~= nil then percent = parsed end
+                    -- HasNitrous is an installation check, including when it
+                    -- returns a number/table instead of a bool. A false result
+                    -- should not prevent checking saved special parts.
+                    percent, installedBottle = resolveRSCustomsReading(installed, vehicle, installedPercent,
+                        type(installed) == 'number' or type(installed) == 'boolean')
+                    if percent == 0 and not installedBottle then
+                        hasNitrousReportedEmpty = true
+                        percent = nil
                     end
                 end
             end
@@ -1665,16 +1880,16 @@ local function pullRSCustomsNosStatus(vehicle, push, force)
             if percent == nil then
                 local ok, parts = callVehicleExport(resourceName, cfg.SpecialPartsExport or 'GetSpecialParts', vehicle)
                 if ok and parts ~= nil then
-                    local parsed = extractRSCustomsNosValue(parts, 0)
-                    if parsed ~= nil then percent = parsed end
+                    percent, installedBottle = resolveRSCustomsReading(parts, vehicle, installedPercent)
+                    if percent ~= nil and not installedBottle then numericChargeReading = true end
                 end
             end
 
             if percent == nil then
                 local ok, props = callVehicleExport(resourceName, cfg.PropertiesExport or 'GetVehicleProperties', vehicle)
                 if ok and props ~= nil then
-                    local parsed = extractRSCustomsNosValue(props, 0)
-                    if parsed ~= nil then percent = parsed end
+                    percent, installedBottle = resolveRSCustomsReading(props, vehicle, installedPercent)
+                    if percent ~= nil and not installedBottle then numericChargeReading = true end
                 end
             end
 
@@ -1689,24 +1904,64 @@ local function pullRSCustomsNosStatus(vehicle, push, force)
                     }) do
                         local stateOk, stateValue = pcall(function() return entityRef.state[key] end)
                         if stateOk and stateValue ~= nil then
-                            local parsed = extractRSCustomsNosValue(stateValue, 0)
-                            if parsed ~= nil then percent = parsed break end
+                            local parsed, installed = resolveRSCustomsReading(stateValue, vehicle, installedPercent)
+                            if parsed ~= nil then
+                                percent, installedBottle = parsed, installed
+                                if not installedBottle then numericChargeReading = true end
+                                break
+                            end
                         end
                     end
                 end
             end
 
+            if percent == nil and hasNitrousReportedEmpty then percent = 0 end
             if percent ~= nil then
                 percent = math.max(0, math.min(100, percent))
-                local changed = setStatusExact('nos', percent)
-                rsCustomsNosHandled = true
-                if push and changed then pushStatus() end
-                return true
+                -- A reported real 0% is still a charge value. Confirm whether
+                -- the provider owns this bottle before suppressing another
+                -- active nitrous resource's reading.
+                if numericChargeReading and percent <= 0 then
+                    local ok, has = callVehicleExport(resourceName, cfg.HasExport or 'HasNitrous', vehicle)
+                    bottleConfirmed = ok and (has == true or (type(has) == 'number' and has > 0))
+                    if not bottleConfirmed and isNitrousActive(vehicle) then
+                        percent = nil
+                    end
+                end
+                if percent ~= nil and (percent > 0 or installedBottle or bottleConfirmed
+                    or (numericChargeReading and statusData.showNos)) then
+                    local wasVisible = statusData.showNos
+                    statusData.showNos = true
+                    if numericChargeReading or not installedBottle then
+                        nosRealLevelUntil = now + 1100
+                        nosSimActive = false
+                    end
+                    local changed = setStatusExact('nos', percent)
+                    changed = (wasVisible ~= statusData.showNos) or changed
+                    rsCustomsNosHandled = true
+                    if push and changed then pushStatus() end
+                    return true
+                end
+                -- Both normal and zombie customs can be started. One reporting
+                -- "no bottle" must not hide the other provider's installed NOS.
+                if percent ~= nil then sawEmptyReading = true end
             end
 
             -- This resource name is active but did not expose readable NOS data.
             -- Continue in case the renamed RS Zombie LS Customs resource is also
             -- present, then fall back to another configured NOS provider.
+        end
+    end
+
+    if sawEmptyReading then
+        -- A zero from one custom shop is not authoritative if another nitrous
+        -- system is installed or boost activity has already been observed.
+        -- Do not repeatedly pin the shared meter back to 0 on every poll.
+        if not statusData.showNos and not nosSimActive
+            and GetGameTimer() >= nosExternalUpdateUntil
+            and GetGameTimer() >= nosRealLevelUntil then
+            local changed = setStatusExact('nos', 0)
+            if push and changed then pushStatus() end
         end
     end
 
@@ -1726,20 +1981,25 @@ CreateThread(function()
     while true do
         local wait = 250
 
-        if playerLoaded and nosSimActive and (Config.NOSBridge or {}).Enabled ~= false then
+        if playerLoaded and (Config.NOSBridge or {}).Enabled ~= false then
             local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
-            if vehicle and vehicle ~= 0 then
+            local nativeActive = vehicle and vehicle ~= 0 and isNitrousActive(vehicle)
+            local canEstimate = GetGameTimer() >= nosRealLevelUntil
+                and GetGameTimer() >= nosExternalUpdateUntil
+            if vehicle and vehicle ~= 0 and (nosSimActive or (nativeActive and canEstimate)) then
                 wait = 60
+                local wasVisible = statusData.showNos
+                statusData.showNos = true
+                nosSimActive = true
                 local level = simulateNosLevel(vehicle)
-                if level ~= nil and setStatusExact('nos', level) then
-                    pushStatus()
-                end
-            else
+                local changed = level ~= nil and setStatusExact('nos', level) or false
+                if changed or wasVisible ~= statusData.showNos then pushStatus() end
+            elseif not vehicle or vehicle == 0 then
                 nosSimActive = false
             end
         elseif (Config.NOSBridge or {}).Enabled == false then
             nosSimActive = false
-            nosSim.activeSince, nosSim.cooldownUntil = 0, 0
+            nosSim.activeSince, nosSim.cooldownUntil, nosSim.lastTick = 0, 0, 0
         end
 
         Wait(wait)
@@ -1759,11 +2019,26 @@ RegisterCommand('nosdebug', function()
     print('^5[RS-HUDLIFE] ===== NOS DIAGNOSTIC =====^7')
     print(('  In vehicle          : %s'):format(vehicle ~= 0 and 'yes' or 'no'))
     print(('  Current NOS reading : %s%%'):format(tostring(statusData.nos)))
+    print(('  NOS bottle visible  : %s'):format(tostring(statusData.showNos)))
+    print(('  Native boost active : %s'):format(tostring(isNitrousActive(vehicle))))
+    print(('  Recent real reading : %s'):format(tostring(GetGameTimer() < nosRealLevelUntil or GetGameTimer() < nosExternalUpdateUntil)))
+    if vehicle and vehicle ~= 0 and GetResourceState('rs-mods4whipz') == 'started' then
+        local ok, reading = callVehicleExport('rs-mods4whipz', 'GetNitrousState', vehicle)
+        if ok and type(reading) == 'table' then
+            print(('  Mods4Whipz provider : installed=%s active=%s level=%s%% mode=%s cooldown=%sms'):format(
+                tostring(reading.installed), tostring(reading.active), tostring(reading.level),
+                tostring(reading.mode), tostring(reading.cooldownRemainingMs)))
+        else
+            print('  Mods4Whipz provider : telemetry unavailable (ensure latest Mods4Whipz patch)')
+        end
+    end
 
-    if nosSimActive then
+    if mods4WhipzNosHandled then
+        print('  Source              : rs-mods4whipz live burst/cooldown telemetry')
+    elseif nosSimActive then
         print('  Source              : HUD is deriving the level (your NOS script reports installed-only)')
     else
-        print('  Source              : your NOS script is reporting a real level directly')
+        print('  Source              : provider/event/state reading (or no installed NOS detected)')
     end
 
     if nosCalib.source then
@@ -1803,9 +2078,11 @@ local function refreshAllStatusSources(push)
 
     local activeVehicle = GetVehiclePedIsIn(PlayerPedId(), false)
     if activeVehicle and activeVehicle ~= 0 then
-        local handledByRSCustoms = pullRSCustomsNosStatus(activeVehicle, push, false)
-        if not handledByRSCustoms then
-            changed = pullVehicleNosStatus(activeVehicle, false) or changed
+        if not pullMods4WhipzNosStatus(activeVehicle, push, false) then
+            local handledByRSCustoms = pullRSCustomsNosStatus(activeVehicle, push, false)
+            if not handledByRSCustoms then
+                changed = pullVehicleNosStatus(activeVehicle, false) or changed
+            end
         end
     end
 
@@ -1884,7 +2161,15 @@ local function registerStatusBridgeEvents()
     RegisterNetEvent(events.SetNOS or 'rs-lilhudlife:client:SetNOS', function(value)
         if (Config.NOSBridge or {}).Enabled == false then return end
         local percent = normalizeNosValue(value)
-        if percent ~= nil and setStatusExact('nos', percent) then pushStatus() end
+        if percent ~= nil then
+            nosExternalUpdateUntil = GetGameTimer() + 1500
+            nosSimActive = false
+            nosRealLevelUntil = nosExternalUpdateUntil
+            local wasVisible = statusData.showNos
+            if percent > 0 then statusData.showNos = true end
+            local changed = setStatusExact('nos', percent)
+            if changed or wasVisible ~= statusData.showNos then pushStatus() end
+        end
     end)
 
     local function handleNosAlias(...)
@@ -1903,7 +2188,15 @@ local function registerStatusBridgeEvents()
 
         if candidate == nil and #args == 1 then candidate = args[1] end
         local percent = normalizeNosValue(candidate)
-        if percent ~= nil and setStatusExact('nos', percent) then pushStatus() end
+        if percent ~= nil then
+            nosExternalUpdateUntil = GetGameTimer() + 1500
+            nosSimActive = false
+            nosRealLevelUntil = nosExternalUpdateUntil
+            local wasVisible = statusData.showNos
+            if percent > 0 then statusData.showNos = true end
+            local changed = setStatusExact('nos', percent)
+            if changed or wasVisible ~= statusData.showNos then pushStatus() end
+        end
     end
 
     -- qb-mechanicjob emits hud:client:UpdateNitrous(level, hasNitro).
@@ -1961,8 +2254,13 @@ exports('SetNOS', function(value)
     if (Config.NOSBridge or {}).Enabled == false then return false end
     local percent = normalizeNosValue(value)
     if percent == nil then return false end
+    nosExternalUpdateUntil = GetGameTimer() + 1500
+    nosRealLevelUntil = nosExternalUpdateUntil
+    nosSimActive = false
+    local wasVisible = statusData.showNos
+    if percent > 0 then statusData.showNos = true end
     local changed = setStatusExact('nos', percent)
-    if changed then pushStatus() end
+    if changed or wasVisible ~= statusData.showNos then pushStatus() end
     return changed
 end)
 
@@ -1979,6 +2277,7 @@ exports('GetStatus', function()
         stamina = statusData.stamina,
         oxygen = statusData.oxygen,
         nos = statusData.nos,
+        showNos = statusData.showNos,
         showOxygen = statusData.showOxygen,
         framework = detectedFramework,
     }
@@ -2149,9 +2448,13 @@ local function onPlayerUnloaded()
     qbMechanicNosLastPoll = 0
     rsCustomsNosLastPoll = 0
     rsCustomsNosHandled = false
+    mods4WhipzNosHandled = false
+    mods4WhipzNosLastPoll = 0
     nosSimActive = false
-    nosSim = { activeSince = 0, cooldownUntil = 0, vehicle = 0, level = 100 }
+    nosExternalUpdateUntil = 0
+    nosSim = { activeSince = 0, cooldownUntil = 0, vehicle = 0, level = 100, lastTick = 0 }
     statusData.nos = (Config.NOSBridge and Config.NOSBridge.Default) or 0
+    statusData.showNos = false
     moneyData.cash, moneyData.bank = 0, 0
     moneyData.job, moneyData.jobGrade = '', ''
     statusData.health, statusData.armor = 100, 0
@@ -2372,8 +2675,63 @@ RegisterNetEvent('QBCore:Client:OnJobUpdate', function(JobInfo)
 end)
 
 -- ============================================================
--- DIRECT ESX EVENT HOOKS
+-- ESX EVENT HOOKS (via rs_bridge)
 -- ============================================================
+-- None of the QBCore:* events above exist on ESX, so without this block the
+-- HUD's money and job pills never update there. rs_bridge normalizes both
+-- ecosystems onto rs_bridge:client:* events.
+--
+-- Those normalized events also fire on Qbox/QBCore, where the handlers above
+-- have already run, so each one bails unless ESX is the resolved framework.
+-- That keeps this purely additive: the working Qbox path is untouched.
+local function esxResolved()
+    return detectedFramework == 'esx'
+end
+
+AddEventHandler('rs_bridge:client:playerLoaded', function()
+    if not esxResolved() then return end
+    if not QBCore then initQBCoreOnce() end
+
+    local PlayerData = {}
+    if QBCore then
+        local ok, data = pcall(function()
+            return QBCore.Functions.GetPlayerData()
+        end)
+        PlayerData = ok and data or {}
+    end
+    onPlayerLoaded(PlayerData)
+end)
+
+AddEventHandler('rs_bridge:client:playerUnloaded', function()
+    if not esxResolved() then return end
+    onPlayerUnloaded()
+end)
+
+AddEventHandler('rs_bridge:client:jobUpdate', function(job)
+    if not esxResolved() or not job then return end
+    moneyData.job = job.label or job.name or ''
+    moneyData.jobGrade = jobGradeLabel(job)
+    pushMoney()
+end)
+
+-- ESX always reports an absolute balance, so this is always a 'set'.
+AddEventHandler('rs_bridge:client:moneyChange', function(account, amount)
+    if not esxResolved() then return end
+    amount = math.max(0, tonumber(amount) or 0)
+
+    if account == 'cash' then
+        moneyData.cash = amount
+    elseif account == 'bank' then
+        moneyData.bank = amount
+    else
+        return
+    end
+
+    pushMoney()
+end)
+
+
+-- Direct ESX events for servers that do not use rs_bridge.
 RegisterNetEvent('esx:playerLoaded', function()
     if detectedFramework ~= 'esx' then return end
     SetTimeout(0, function()
@@ -2622,6 +2980,13 @@ local function enterOrSwitchVehicle(vehicle)
     if bootInProgress then cancelBootSequence() end
 
     inVehicle = true
+    -- Vehicle boot / preview UI occupies the same corner as the weapon HUD.
+    -- Clear it immediately, before drawing the vehicle HUD, even if the armed
+    -- polling loop has not yet observed the new seat/vehicle.
+    if (Config.WeaponHud or {}).HideInVehicles ~= false then
+        weaponHudLastSignature = nil
+        sendNUI({ action = 'hideWeapon' })
+    end
     currentVehicle = vehicle
     currentVehicleClass = newData.class
     currentVehicleModel = newData.model
@@ -2632,7 +2997,12 @@ local function enterOrSwitchVehicle(vehicle)
     qbMechanicNosLastPoll = 0
     rsCustomsNosLastPoll = 0
     rsCustomsNosHandled = false
+    mods4WhipzNosHandled = false
+    mods4WhipzNosLastPoll = 0
     nosSimActive = false
+    nosExternalUpdateUntil = 0
+    nosRealLevelUntil = 0
+    statusData.showNos = false
     nosSim.vehicle = 0
     setStatusExact('nos', (Config.NOSBridge and Config.NOSBridge.Default) or 0)
 
@@ -2647,10 +3017,12 @@ local function enterOrSwitchVehicle(vehicle)
     end
 
     if (Config.NOSBridge or {}).Enabled ~= false then
-        local handledByRSCustoms = pullRSCustomsNosStatus(vehicle, false, true)
-        if not handledByRSCustoms then
-            pullVehicleNosStatus(vehicle, false)
-            pullQbMechanicNosStatus(vehicle, false, true)
+        if not pullMods4WhipzNosStatus(vehicle, false, true) then
+            local handledByRSCustoms = pullRSCustomsNosStatus(vehicle, false, true)
+            if not handledByRSCustoms then
+                pullVehicleNosStatus(vehicle, false)
+                pullQbMechanicNosStatus(vehicle, false, true)
+            end
         end
     end
     pushStatus()
@@ -2674,10 +3046,12 @@ Citizen.CreateThread(function()
 
             if hudMasterEnabled and hudActive and not bootInProgress and not externalHudHidden and not pauseMenuHiddenHud then
                 if (Config.NOSBridge or {}).Enabled ~= false then
-                    local handledByRSCustoms = pullRSCustomsNosStatus(vehicle, true, false)
-                    if not handledByRSCustoms then
-                        if pullVehicleNosStatus(vehicle, false) then pushStatus() end
-                        pullQbMechanicNosStatus(vehicle, true, false)
+                    if not pullMods4WhipzNosStatus(vehicle, true, false) then
+                        local handledByRSCustoms = pullRSCustomsNosStatus(vehicle, true, false)
+                        if not handledByRSCustoms then
+                            if pullVehicleNosStatus(vehicle, false) then pushStatus() end
+                            pullQbMechanicNosStatus(vehicle, true, false)
+                        end
                     end
                 end
                 sendNUI({ action = 'updateSpeedo', data = getSpeedData(vehicle) })
@@ -2698,9 +3072,16 @@ Citizen.CreateThread(function()
                 qbMechanicNosLastPoll = 0
                 rsCustomsNosLastPoll = 0
                 rsCustomsNosHandled = false
+                mods4WhipzNosHandled = false
+                mods4WhipzNosLastPoll = 0
                 nosSimActive = false
+                nosExternalUpdateUntil = 0
+                nosRealLevelUntil = 0
+                local hadNosBottle = statusData.showNos
+                statusData.showNos = false
                 nosSim.vehicle = 0
-                if setStatusExact('nos', (Config.NOSBridge and Config.NOSBridge.Default) or 0) then pushStatus() end
+                local updatedNos = setStatusExact('nos', (Config.NOSBridge and Config.NOSBridge.Default) or 0)
+                if updatedNos or hadNosBottle then pushStatus() end
                 sendNUI({ action = 'hideSpeedo' })
             end
             sleep = 500
@@ -2782,6 +3163,25 @@ end, false)
 -- ============================================================
 -- MENU / KEYBIND
 -- ============================================================
+-- The editor is a keyboard/mouse-first NUI. Merely setting focus can leave
+-- gameplay inputs active on some clients or after another script toggles
+-- KeepInput. Suppress GTA controls *each frame* only while this menu is open.
+-- We deliberately do NOT freeze the ped/vehicle, alter movement physics, or
+-- enable GTA pause/weapon actions: Escape and Close are handled by NUI.
+CreateThread(function()
+    while true do
+        if menuOpen then
+            DisableAllControlActions(0) -- keyboard / player actions
+            DisableAllControlActions(1) -- camera / look input
+            DisableAllControlActions(2) -- frontend / controller actions
+            DisablePlayerFiring(PlayerId(), true)
+            Wait(0)
+        else
+            Wait(250)
+        end
+    end
+end)
+
 CreateThread(function()
     while true do
         if menuOpen then
@@ -2831,7 +3231,7 @@ RegisterKeyMapping('rshudlife', Config.Menu.Description, 'keyboard', Config.Menu
 -- ============================================================
 -- NUI CALLBACKS
 -- ============================================================
-local SPEEDO_STYLES = { halo=true, vehicle=true, apex=true, classic=true, neon=true, minimal=true, turbo=true, volt=true, survival=true, cluster=true }
+local SPEEDO_STYLES = { halo=true, vehicle=true, apex=true, classic=true, neon=true, minimal=true, turbo=true, volt=true, survival=true, cluster=true, gtneedle=true, chronograph=true, muscle=true, hyperneedle=true, driftking=true, cyberneedle=true, rally=true, aviation=true, retro80s=true, touge=true, driftpro=true, driftbar=true, neonpunk=true, cyberbounce=true, hyperpulse=true }
 local STATUS_LAYOUTS = { horizontal=true, stacked=true, compact=true }
 local STATUS_SHAPES = { circle=true, diamond=true, hexagon=true, square=true }
 local STATUS_ICON_STYLES = { crystal=true, neon=true, mono=true, vivid=true }
@@ -2973,6 +3373,8 @@ RegisterNUICallback('saveNosSettings', function(data, cb)
     if Config.NOSBridge.Enabled == false then
         Config.Status.Show.nos = false
         statusData.nos = 0
+        statusData.showNos = false
+        mods4WhipzNosHandled = false
         nosSimActive = false
         nosSim.activeSince, nosSim.cooldownUntil = 0, 0
     else
@@ -2980,8 +3382,10 @@ RegisterNUICallback('saveNosSettings', function(data, cb)
         rsCustomsNosHandled = false
         local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
         if vehicle and vehicle ~= 0 then
-            local handled = pullRSCustomsNosStatus(vehicle, false, true)
-            if not handled then pullVehicleNosStatus(vehicle, false) end
+            if not pullMods4WhipzNosStatus(vehicle, false, true) then
+                local handled = pullRSCustomsNosStatus(vehicle, false, true)
+                if not handled then pullVehicleNosStatus(vehicle, false) end
+            end
         end
     end
 
@@ -3213,13 +3617,12 @@ RegisterCommand('hudmech', function()
 end, false)
 
 -- ============================================================
--- WEAPON HUD v1.4.5 - compact firearm / clip / reserve display
+-- WEAPON HUD v1.4.8 - universal weapon + actual inventory reserve display
 -- Standalone, QBCore, Qbox, ESX, ox_inventory-compatible.
 -- No inventory dependency and no changes to weapon ownership/ammo.
 -- ============================================================
 local weaponHudCfg = Config.WeaponHud or {}
 local weaponHudEnabled = weaponHudCfg.Enabled ~= false
-local weaponHudLastSignature = nil
 local weaponHudOxCurrent = nil
 
 local function weaponUnsignedHash(hash)
@@ -3309,7 +3712,46 @@ local weaponDefinitions = {
     {'WEAPON_RAYPISTOL', 'Up-n-Atomizer', 'pistol'},
     {'WEAPON_EMPLAUNCHER', 'Compact EMP Launcher', 'launcher'},
     {'WEAPON_FIREWORK', 'Firework Launcher', 'launcher'},
-    {'WEAPON_PETROLCAN', 'Jerry Can', 'heavy'},
+    -- All standard melee weapons: selected-weapon detection, not firearm-only.
+    {'WEAPON_KNIFE', 'Knife', 'melee'},
+    {'WEAPON_NIGHTSTICK', 'Nightstick', 'melee'},
+    {'WEAPON_HAMMER', 'Hammer', 'melee'},
+    {'WEAPON_BAT', 'Baseball Bat', 'melee'},
+    {'WEAPON_GOLFCLUB', 'Golf Club', 'melee'},
+    {'WEAPON_CROWBAR', 'Crowbar', 'melee'},
+    {'WEAPON_BOTTLE', 'Broken Bottle', 'melee'},
+    {'WEAPON_DAGGER', 'Antique Cavalry Dagger', 'melee'},
+    {'WEAPON_HATCHET', 'Hatchet', 'melee'},
+    {'WEAPON_KNUCKLE', 'Knuckle Dusters', 'melee'},
+    {'WEAPON_MACHETE', 'Machete', 'melee'},
+    {'WEAPON_FLASHLIGHT', 'Flashlight', 'melee'},
+    {'WEAPON_SWITCHBLADE', 'Switchblade', 'melee'},
+    {'WEAPON_BATTLEAXE', 'Battle Axe', 'melee'},
+    {'WEAPON_POOLCUE', 'Pool Cue', 'melee'},
+    {'WEAPON_WRENCH', 'Pipe Wrench', 'melee'},
+    {'WEAPON_STONE_HATCHET', 'Stone Hatchet', 'melee'},
+    {'WEAPON_CANDYCANE', 'Candy Cane', 'melee'},
+    -- Throwable, equipment and special-weapon support.
+    {'WEAPON_GRENADE', 'Grenade', 'throwable'},
+    {'WEAPON_BZGAS', 'BZ Gas', 'throwable'},
+    {'WEAPON_MOLOTOV', 'Molotov', 'throwable'},
+    {'WEAPON_STICKYBOMB', 'Sticky Bomb', 'throwable'},
+    {'WEAPON_PROXMINE', 'Proximity Mine', 'throwable'},
+    {'WEAPON_SNOWBALL', 'Snowball', 'throwable'},
+    {'WEAPON_BALL', 'Ball', 'throwable'},
+    {'WEAPON_SMOKEGRENADE', 'Tear Gas', 'throwable'},
+    {'WEAPON_PIPEBOMB', 'Pipe Bomb', 'throwable'},
+    {'WEAPON_FLARE', 'Flare', 'throwable'},
+    {'WEAPON_ACIDPACKAGE', 'Acid Package', 'throwable'},
+    {'WEAPON_SNOWLAUNCHER', 'Snowball Launcher', 'launcher'},
+    {'WEAPON_FIREEXTINGUISHER', 'Fire Extinguisher', 'utility'},
+    {'WEAPON_HAZARDCAN', 'Hazardous Jerry Can', 'utility'},
+    {'WEAPON_FERTILIZERCAN', 'Fertilizer Can', 'utility'},
+    {'WEAPON_METALDETECTOR', 'Metal Detector', 'utility'},
+    {'WEAPON_DIGISCANNER', 'Digital Scanner', 'utility'},
+    {'WEAPON_NIGHTVISION', 'Night Vision', 'utility'},
+    {'WEAPON_PARACHUTE', 'Parachute', 'utility'},
+    {'WEAPON_PETROLCAN', 'Jerry Can', 'utility'},
 }
 for _, item in ipairs(weaponDefinitions) do weaponInfo(item[1], item[2], item[3]) end
 
@@ -3321,6 +3763,10 @@ local weaponGroups = {
     [weaponUnsignedHash(GetHashKey('GROUP_SNIPER'))] = 'sniper',
     [weaponUnsignedHash(GetHashKey('GROUP_MG'))] = 'mg',
     [weaponUnsignedHash(GetHashKey('GROUP_HEAVY'))] = 'heavy',
+    [weaponUnsignedHash(GetHashKey('GROUP_MELEE'))] = 'melee',
+    [weaponUnsignedHash(GetHashKey('GROUP_THROWN'))] = 'throwable',
+    [weaponUnsignedHash(GetHashKey('GROUP_PETROLCAN'))] = 'utility',
+    [weaponUnsignedHash(GetHashKey('GROUP_FIREEXTINGUISHER'))] = 'utility',
 }
 
 local ammoTypes = {}
@@ -3343,20 +3789,133 @@ ammoType('AMMO_FLAREGUN', 'FLARES')
 ammoType('AMMO_STUNGUN', 'CHARGES')
 ammoType('AMMO_EMPLAUNCHER', 'EMP GRENADES')
 
+-- Never change a player's weapon, ammo, reload or item state. Read only.
+local weaponHudUnarmed = weaponUnsignedHash(GetHashKey('WEAPON_UNARMED'))
+local weaponHudOxLastRefresh = -2000
+local weaponHudAmmoCache = {}
+local weaponHudLastHash = nil
+local weaponHudPreviousClip = nil
+local weaponHudPreviousReload = false
+local weaponHudReloadFinishedUntil = 0
+
+-- ox_inventory's standard ammo items. Used even for weapons equipped by
+-- other scripts (when getCurrentWeapon() has no weapon entry). Live .ammo
+-- from ox_inventory takes precedence, followed by server owner overrides.
+local defaultOxAmmoItems = {}
+local function oxAmmo(item, ...)
+    for _, weapon in ipairs({ ... }) do defaultOxAmmoItems[weapon] = item end
+end
+oxAmmo('ammo-9', 'WEAPON_PISTOL', 'WEAPON_PISTOL_MK2', 'WEAPON_COMBATPISTOL',
+    'WEAPON_APPISTOL', 'WEAPON_CERAMICPISTOL', 'WEAPON_GADGETPISTOL',
+    'WEAPON_PISTOLXM3', 'WEAPON_VINTAGEPISTOL', 'WEAPON_SMG', 'WEAPON_SMG_MK2',
+    'WEAPON_COMBATPDW', 'WEAPON_MACHINEPISTOL', 'WEAPON_MINISMG', 'WEAPON_TECPISTOL')
+oxAmmo('ammo-22', 'WEAPON_MARKSMANPISTOL')
+oxAmmo('ammo-38', 'WEAPON_DOUBLEACTION')
+oxAmmo('ammo-44', 'WEAPON_REVOLVER', 'WEAPON_REVOLVER_MK2', 'WEAPON_NAVYREVOLVER')
+oxAmmo('ammo-45', 'WEAPON_HEAVYPISTOL', 'WEAPON_SNSPISTOL',
+    'WEAPON_SNSPISTOL_MK2', 'WEAPON_MICROSMG', 'WEAPON_GUSENBERG')
+oxAmmo('ammo-50', 'WEAPON_PISTOL50')
+oxAmmo('ammo-rifle', 'WEAPON_ADVANCEDRIFLE', 'WEAPON_ASSAULTSMG',
+    'WEAPON_BULLPUPRIFLE', 'WEAPON_BULLPUPRIFLE_MK2', 'WEAPON_CARBINERIFLE',
+    'WEAPON_CARBINERIFLE_MK2', 'WEAPON_COMBATMG', 'WEAPON_HEAVYRIFLE',
+    'WEAPON_MILITARYRIFLE', 'WEAPON_SPECIALCARBINE', 'WEAPON_SPECIALCARBINE_MK2',
+    'WEAPON_TACTICALRIFLE')
+oxAmmo('ammo-rifle2', 'WEAPON_ASSAULTRIFLE', 'WEAPON_ASSAULTRIFLE_MK2',
+    'WEAPON_COMBATMG_MK2', 'WEAPON_COMPACTRIFLE', 'WEAPON_MG',
+    'WEAPON_MINIGUN', 'WEAPON_BATTLERIFLE')
+oxAmmo('ammo-shotgun', 'WEAPON_ASSAULTSHOTGUN', 'WEAPON_BULLPUPSHOTGUN',
+    'WEAPON_COMBATSHOTGUN', 'WEAPON_DBSHOTGUN', 'WEAPON_HEAVYSHOTGUN',
+    'WEAPON_PUMPSHOTGUN', 'WEAPON_PUMPSHOTGUN_MK2', 'WEAPON_SAWNOFFSHOTGUN',
+    'WEAPON_AUTOSHOTGUN')
+oxAmmo('ammo-sniper', 'WEAPON_SNIPERRIFLE', 'WEAPON_MARKSMANRIFLE',
+    'WEAPON_MARKSMANRIFLE_MK2', 'WEAPON_PRECISIONRIFLE')
+oxAmmo('ammo-heavysniper', 'WEAPON_HEAVYSNIPER', 'WEAPON_HEAVYSNIPER_MK2')
+oxAmmo('ammo-musket', 'WEAPON_MUSKET')
+oxAmmo('ammo-rocket', 'WEAPON_RPG', 'WEAPON_HOMINGLAUNCHER')
+oxAmmo('ammo-grenade', 'WEAPON_GRENADELAUNCHER', 'WEAPON_COMPACTLAUNCHER')
+oxAmmo('ammo-railgun', 'WEAPON_RAILGUN', 'WEAPON_RAILGUNXM3')
+oxAmmo('ammo-laser', 'WEAPON_RAYCARBINE', 'WEAPON_RAYMINIGUN')
+oxAmmo('ammo-flare', 'WEAPON_FLAREGUN')
+oxAmmo('ammo-firework', 'WEAPON_FIREWORK')
+oxAmmo('ammo-emp', 'WEAPON_EMPLAUNCHER')
+
+local oxAmmoNames = {
+    ['ammo-9'] = '9MM', ['ammo-22'] = '.22 LR', ['ammo-38'] = '.38',
+    ['ammo-44'] = '.44 MAG', ['ammo-45'] = '.45 ACP', ['ammo-50'] = '.50 AE',
+    ['ammo-rifle'] = '5.56MM', ['ammo-rifle2'] = '7.62MM',
+    ['ammo-shotgun'] = '12 GAUGE', ['ammo-sniper'] = 'SNIPER',
+    ['ammo-heavysniper'] = '.50 BMG', ['ammo-musket'] = 'MUSKET',
+    ['ammo-rocket'] = 'ROCKETS', ['ammo-grenade'] = 'GRENADES',
+    ['ammo-flare'] = 'FLARES', ['ammo-firework'] = 'FIREWORKS',
+    ['ammo-railgun'] = 'RAILGUN', ['ammo-laser'] = 'ENERGY',
+    ['ammo-emp'] = 'EMP ROUNDS',
+}
+
+local function sanitizeOxWeapon(weapon)
+    if type(weapon) ~= 'table' then return nil end
+    local hash = tonumber(weapon.hash)
+    if not hash and type(weapon.name) == 'string' then hash = GetHashKey(weapon.name) end
+    if not hash then return nil end
+    local metadata = type(weapon.metadata) == 'table' and weapon.metadata or {}
+    return {
+        hash = weaponUnsignedHash(hash),
+        label = type(weapon.label) == 'string' and weapon.label or nil,
+        name = type(weapon.name) == 'string' and weapon.name:upper() or nil,
+        ammo = type(weapon.ammo) == 'string' and weapon.ammo or nil,
+        melee = weapon.melee == true,
+        loadedMetadata = tonumber(metadata.ammo),
+    }
+end
+
 AddEventHandler('ox_inventory:currentWeapon', function(weapon)
-    if type(weapon) ~= 'table' then
+    weaponHudOxCurrent = sanitizeOxWeapon(weapon)
+    weaponHudOxLastRefresh = GetGameTimer()
+    weaponHudLastSignature = nil
+    weaponHudAmmoCache = {}
+end)
+
+-- ox_inventory can start after this resource and can equip an existing weapon
+-- before this listener is ready; periodically query its actual equipped item.
+local function currentOxWeapon(hash)
+    if GetResourceState('ox_inventory') ~= 'started' then
         weaponHudOxCurrent = nil
-    else
-        local hash = tonumber(weapon.hash)
-        if not hash and type(weapon.name) == 'string' then hash = GetHashKey(weapon.name) end
-        weaponHudOxCurrent = hash and {
-            hash = weaponUnsignedHash(hash),
-            label = type(weapon.label) == 'string' and weapon.label or nil,
-            name = type(weapon.name) == 'string' and weapon.name or nil,
-        } or nil
+        return nil
     end
+    local now = GetGameTimer()
+    if now - weaponHudOxLastRefresh >= 650 or now < weaponHudOxLastRefresh then
+        weaponHudOxLastRefresh = now
+        local ok, equipped = pcall(function() return exports.ox_inventory:getCurrentWeapon() end)
+        if ok then weaponHudOxCurrent = sanitizeOxWeapon(equipped) end
+    end
+    if weaponHudOxCurrent and weaponHudOxCurrent.hash == weaponUnsignedHash(hash) then
+        return weaponHudOxCurrent
+    end
+    return nil
+end
+
+-- Cache reads briefly; inventory events invalidate immediately, and the
+-- periodic refresh also covers item usage performed by other resources.
+AddEventHandler('ox_inventory:updateInventory', function()
+    weaponHudAmmoCache = {}
     weaponHudLastSignature = nil
 end)
+
+local function getOxItemCount(itemName)
+    if type(itemName) ~= 'string' or itemName == '' or GetResourceState('ox_inventory') ~= 'started' then return nil end
+    local now = GetGameTimer()
+    local cached = weaponHudAmmoCache[itemName]
+    if cached and now >= cached.at and now - cached.at < 500 then return cached.count end
+    local ok, count = pcall(function() return exports.ox_inventory:Search('count', itemName) end)
+    if not ok or type(count) ~= 'number' then
+        ok, count = pcall(function() return exports.ox_inventory:GetItemCount(itemName) end)
+    end
+    if ok and type(count) == 'number' then
+        count = math.max(0, math.floor(count))
+        weaponHudAmmoCache[itemName] = { at = now, count = count }
+        return count
+    end
+    return nil
+end
 
 RegisterNUICallback('saveWeaponSettings', function(data, cb)
     data = type(data) == 'table' and data or {}
@@ -3368,99 +3927,180 @@ end)
 local function getWeaponReadout(ped, hash)
     local hashed = weaponUnsignedHash(hash)
     local known = weaponNames[hashed]
+    local oxWeapon = currentOxWeapon(hash)
     local group = weaponGroups[weaponUnsignedHash(GetWeapontypeGroup(hash))] or 'generic'
     if known then group = known.category end
-
+    if oxWeapon and oxWeapon.melee then group = 'melee' end
     local model = known and known.model or nil
-    local title = known and known.label or 'Weapon'
-    if weaponHudOxCurrent and weaponHudOxCurrent.hash == hashed then
-        if weaponHudOxCurrent.name and weaponHudOxCurrent.name:match('^WEAPON_[%w_]+$') then
-            model = weaponHudOxCurrent.name
-        end
-        if weaponHudOxCurrent.label and #weaponHudOxCurrent.label <= 80 then
-            title = weaponHudOxCurrent.label
+    local title = known and known.label or nil
+    if oxWeapon then
+        if oxWeapon.name and oxWeapon.name:match('^WEAPON_[%w_]+$') then model = oxWeapon.name end
+        if oxWeapon.label and #oxWeapon.label <= 80 then title = oxWeapon.label end
+    end
+    if not title and type(GetWeaponDisplayNameFromHash) == 'function' then
+        local key = GetWeaponDisplayNameFromHash(hash)
+        if type(key) == 'string' and key ~= '' and key ~= 'NULL' then
+            local localized = GetLabelText(key)
+            if type(localized) == 'string' and localized ~= '' and localized ~= 'NULL' then title = localized end
         end
     end
-    if not known and (not weaponHudOxCurrent or weaponHudOxCurrent.hash ~= hashed) then
-        -- GTA provides a localized label for DLC and custom guns when available.
-        if type(GetWeaponDisplayNameFromHash) == 'function' then
-            local key = GetWeaponDisplayNameFromHash(hash)
-            if type(key) == 'string' and key ~= '' and key ~= 'NULL' then
-                local localized = GetLabelText(key)
-                if localized and localized ~= 'NULL' and localized ~= '' then title = localized end
-            end
-        end
-    end
+    title = title or (model and model:gsub('^WEAPON_', ''):gsub('_', ' ') or ('WEAPON ' .. tostring(hashed)))
 
-    local success, clip = GetAmmoInClip(ped, hash)
-    local total = math.max(0, tonumber(GetAmmoInPedWeapon(ped, hash)) or 0)
-    local clipMax = math.max(0, tonumber(GetMaxAmmoInClip(ped, hash, true)) or 0)
-    if not success then clip = total end
-    clip = math.max(0, math.min(total, tonumber(clip) or 0))
-    if clipMax == 0 then clipMax = math.max(1, tonumber(GetWeaponClipSize(hash)) or 0, clip) end
-    local reserve = math.max(0, total - clip)
-    local ammoHash = weaponUnsignedHash(GetPedAmmoTypeFromWeapon(ped, hash))
-    local ammoLabel = ammoTypes[ammoHash] or ({
-        pistol = 'PISTOL AMMO', revolver = 'PISTOL AMMO', smg = 'SMG AMMO',
-        shotgun = 'SHOTGUN SHELLS', rifle = 'RIFLE AMMO', sniper = 'SNIPER AMMO',
-        mg = 'MG AMMO', launcher = 'EXPLOSIVES', heavy = 'HEAVY AMMO'
-    })[group] or 'AMMO'
+    -- Some custom models have no mapping, but their native weapon group still
+    -- identifies melee and throwable equipment correctly.
+    local isMelee = group == 'melee'
+    local isThrowable = group == 'throwable'
+    -- Electrified/rechargeable weapons do not consume normal reloadable rounds.
+    local chargeOnly = model == 'WEAPON_STUNGUN' or model == 'WEAPON_STUNGUN_MP'
+        or model == 'WEAPON_RAYPISTOL'
+    local isUtility = group == 'utility' or chargeOnly
+    local nativeTotal = math.max(0, tonumber(GetAmmoInPedWeapon(ped, hash)) or 0)
+    local clip, reserve, maxClip = 0, 0, 0
+    local ammoSource = 'native'
+    local reserveKnown = true
+    local ammoItem = nil
+    local ammoLabel = ''
+
+    if isMelee or isUtility then
+        ammoLabel = isMelee and 'MELEE WEAPON' or chargeOnly and 'RECHARGEABLE' or 'EQUIPMENT'
+    else
+        local success, nativeClip = GetAmmoInClip(ped, hash)
+        clip = math.max(0, tonumber(success and nativeClip or nativeTotal) or 0)
+        maxClip = math.max(0, tonumber(GetMaxAmmoInClip(ped, hash, true)) or 0)
+        if maxClip == 0 then maxClip = math.max(1, tonumber(GetWeaponClipSize(hash)) or 0, clip) end
+        reserve = math.max(0, nativeTotal - clip)
+        local ammoHash = weaponUnsignedHash(GetPedAmmoTypeFromWeapon(ped, hash))
+        ammoLabel = ammoTypes[ammoHash] or ({
+            pistol = 'PISTOL AMMO', revolver = 'PISTOL AMMO', smg = 'SMG AMMO',
+            shotgun = 'SHOTGUN SHELLS', rifle = 'RIFLE AMMO', sniper = 'SNIPER AMMO',
+            mg = 'MG AMMO', launcher = 'EXPLOSIVES', heavy = 'HEAVY AMMO'
+        })[group] or 'AMMO'
+
+        if oxWeapon and oxWeapon.ammo then
+            ammoItem = oxWeapon.ammo
+        elseif model then
+            local overrides = weaponHudCfg.InventoryAmmoItems or {}
+            ammoItem = overrides[model] or overrides[ammoLabel] or defaultOxAmmoItems[model]
+        end
+        if ammoItem then
+            local inventoryReserve = getOxItemCount(ammoItem)
+            if inventoryReserve ~= nil then
+                reserve = inventoryReserve -- NOT GetAmmoInPedWeapon - ammo in backpack is separate.
+                ammoSource = 'ox_inventory'
+            end
+            ammoLabel = oxAmmoNames[ammoItem] or ammoLabel
+        end
+        if isThrowable then
+            -- Throwables do not have a reloadable magazine. Native total is
+            -- the currently usable quantity; do not falsely prompt RELOAD.
+            clip = nativeTotal
+            maxClip = math.max(1, clip)
+            reserve = 0
+            ammoSource = 'native'
+            ammoLabel = 'THROWABLE'
+        end
+    end
     if model and weaponHudCfg.AmmoLabelOverrides and type(weaponHudCfg.AmmoLabelOverrides[model]) == 'string' then
         ammoLabel = weaponHudCfg.AmmoLabelOverrides[model]
     end
 
+    local now = GetGameTimer()
+    if weaponHudLastHash ~= hashed then
+        weaponHudLastHash = hashed
+        weaponHudPreviousClip = nil
+        weaponHudPreviousReload = false
+        weaponHudReloadFinishedUntil = 0
+    end
+    local isReloading = not (isMelee or isUtility or isThrowable) and IsPedReloading(ped) == true
+    if isReloading then
+        weaponHudReloadFinishedUntil = 0
+    elseif (weaponHudPreviousReload or (weaponHudPreviousClip and clip > weaponHudPreviousClip)) and clip > 0 then
+        weaponHudReloadFinishedUntil = now + 950
+    end
+    weaponHudPreviousClip = clip
+    weaponHudPreviousReload = isReloading
+
+    local state = 'ready'
+    if isMelee then state = 'melee'
+    elseif isUtility then state = 'utility'
+    elseif isThrowable then state = clip > 0 and 'throwable' or 'empty'
+    elseif isReloading then state = 'reloading'
+    elseif now < weaponHudReloadFinishedUntil and clip > 0 then state = 'reloaded'
+    elseif clip == 0 and reserve > 0 then state = 'reload'
+    elseif clip == 0 then state = 'empty'
+    elseif clip <= math.max(2, math.floor(maxClip * (tonumber(weaponHudCfg.LowAmmoRatio) or 0.25))) then state = 'low'
+    elseif reserve == 0 then state = 'lastmag'
+    end
+
     return {
         visible = true,
-        weapon = model or '',
-        name = title,
-        category = group,
-        clip = math.floor(clip),
-        reserve = math.floor(reserve),
-        maxClip = math.floor(clipMax),
-        ammoType = ammoLabel,
+        weapon = model or '', name = title, category = group,
+        mode = isMelee and 'melee' or isUtility and 'utility' or isThrowable and 'throwable' or 'firearm',
+        clip = math.floor(clip), reserve = math.floor(reserve), maxClip = math.floor(maxClip),
+        ammoType = ammoLabel, ammoItem = ammoItem or '', ammoSource = ammoSource,
+        reserveKnown = reserveKnown, state = state,
+        effects = weaponHudCfg.Effects ~= false,
         imageEnabled = weaponHudCfg.UseInventoryImages ~= false and GetResourceState('ox_inventory') == 'started',
     }
+end
+
+local function isSelectedWeapon(ped)
+    if ped == 0 or not DoesEntityExist(ped) or IsEntityDead(ped) then return false, nil end
+    local selected = GetSelectedPedWeapon(ped)
+    local hash = weaponUnsignedHash(selected)
+    -- GTA may temporarily report zero during a holster, death or ped change.
+    -- Zero is not a weapon and must never display a stale panel.
+    return hash ~= 0 and hash ~= weaponHudUnarmed, selected
+end
+
+local function shouldHideWeaponInVehicle(ped)
+    if weaponHudCfg.HideInVehicles == false or ped == 0 then return false end
+    -- Covers the animation before entering (including passenger seats), as
+    -- well as every occupied vehicle. No vehicle model whitelist is needed.
+    if GetVehiclePedIsIn(ped, false) ~= 0 then return true end
+    if type(IsPedGettingIntoAVehicle) == 'function' and IsPedGettingIntoAVehicle(ped) then return true end
+    return false
 end
 
 CreateThread(function()
     while true do
         local ped = PlayerPedId()
         local allowed = playerLoaded and hudMasterEnabled and weaponHudEnabled
-            and not pauseMenuHiddenHud and not externalHudHidden
-            and ped ~= 0 and DoesEntityExist(ped) and not IsEntityDead(ped)
-        local armed = allowed and IsPedArmed(ped, 4)
-        if armed then
-            local hash = GetSelectedPedWeapon(ped)
-            if weaponUnsignedHash(hash) ~= weaponUnsignedHash(GetHashKey('WEAPON_UNARMED')) then
-                local view = getWeaponReadout(ped, hash)
-                local signature = table.concat({ tostring(weaponUnsignedHash(hash)), view.weapon, view.name, view.category,
-                    tostring(view.clip), tostring(view.reserve), tostring(view.maxClip), view.ammoType, tostring(view.imageEnabled) }, ':')
-                if weaponHudLastSignature ~= signature then
-                    weaponHudLastSignature = signature
-                    sendNUI({ action = 'updateWeapon', data = view })
-                end
-                Wait(120)
-            else
-                armed = false
+            and not pauseMenuHiddenHud and not externalHudHidden and not IsPauseMenuActive()
+            and not shouldHideWeaponInVehicle(ped)
+        local equipped, hash = false, nil
+        if allowed then equipped, hash = isSelectedWeapon(ped) end
+        if equipped then
+            local view = getWeaponReadout(ped, hash)
+            local signature = table.concat({ tostring(weaponUnsignedHash(hash)), view.weapon, view.name, view.category,
+                view.mode, tostring(view.clip), tostring(view.reserve), tostring(view.maxClip), view.ammoType,
+                view.ammoSource, view.state, tostring(view.imageEnabled) }, ':')
+            if weaponHudLastSignature ~= signature then
+                weaponHudLastSignature = signature
+                sendNUI({ action = 'updateWeapon', data = view })
             end
-        end
-        if not armed then
+            Wait(110)
+        else
             if weaponHudLastSignature ~= nil then
                 weaponHudLastSignature = nil
+                weaponHudLastHash = nil
                 sendNUI({ action = 'hideWeapon' })
             end
-            Wait(350)
+            Wait(300)
         end
     end
 end)
 
--- Only replace GTA's built-in weapon counter while our display is enabled.
--- Never hide the weapon wheel or reticle, and restore native UI on hide/logout.
+-- Disable ONLY the vanilla ammo count while an actual firearm is displayed;
+-- never hide the weapon wheel, reticle, or anything when a melee is equipped.
 CreateThread(function()
     while true do
+        local ped = PlayerPedId()
+        local equipped, selected = isSelectedWeapon(ped)
         if playerLoaded and hudMasterEnabled and weaponHudEnabled and weaponHudCfg.HideNativeAmmo ~= false
             and not pauseMenuHiddenHud and not externalHudHidden and not IsPauseMenuActive()
-            and IsPedArmed(PlayerPedId(), 4) then
+            and not shouldHideWeaponInVehicle(ped)
+            and equipped and IsPedArmed(ped, 4) then
             DisplayAmmoThisFrame(false)
             HideHudComponentThisFrame(2)
             Wait(0)
@@ -3470,24 +4110,23 @@ CreateThread(function()
     end
 end)
 
--- F8 live diagnostic: reports the same native weapon/ammo snapshot used by
--- the production HUD. Useful when an inventory overrides GTA ammo handling.
+-- F8 diagnostics: compare GTA loaded/total with the actual ox inventory item.
 RegisterCommand('rshudweapondebug', function()
     local ped = PlayerPedId()
-    local selected = GetSelectedPedWeapon(ped)
-    local armed = IsPedArmed(ped, 4)
+    local equipped, selected = isSelectedWeapon(ped)
     local allowed = playerLoaded and hudMasterEnabled and weaponHudEnabled
         and not externalHudHidden and not pauseMenuHiddenHud
-    local snapshot = armed and getWeaponReadout(ped, selected) or nil
+        and not shouldHideWeaponInVehicle(ped)
+    local snapshot = equipped and getWeaponReadout(ped, selected) or nil
     print(('[rs-lilhudlife][WEAPON] %s'):format(json.encode({
-        weaponHash = weaponUnsignedHash(selected),
-        armed = armed,
-        playerLoaded = playerLoaded,
-        hudMasterEnabled = hudMasterEnabled,
+        weaponHash = weaponUnsignedHash(selected or weaponHudUnarmed),
+        equipped = equipped,
+        nativeTotal = equipped and GetAmmoInPedWeapon(ped, selected) or 0,
+        ammoInventoryItem = snapshot and snapshot.ammoItem or nil,
+        ammoSource = snapshot and snapshot.ammoSource or nil,
+        playerLoaded = playerLoaded, hudMasterEnabled = hudMasterEnabled,
         weaponHudEnabled = weaponHudEnabled,
-        externalHudHidden = externalHudHidden,
-        pauseMenuHiddenHud = pauseMenuHiddenHud,
-        allowed = allowed,
-        ui = snapshot,
+        externalHudHidden = externalHudHidden, pauseMenuHiddenHud = pauseMenuHiddenHud,
+        allowed = allowed, ui = snapshot,
     })))
 end, false)

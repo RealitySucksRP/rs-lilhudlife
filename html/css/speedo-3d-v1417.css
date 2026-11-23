@@ -1,0 +1,1063 @@
+/* ============================================================================
+   RS HUDLife v1.4.16 — 18 Forward-Facing Speedometers + 10 Needle Varieties
+   + Interactive Drift Telemetry HUD
+   Protects HALO LOGO ('halo') and VEHICLE HEALTH ('vehicle') 100% untouched.
+   Built without backdrop-filter or CSS filter() for full FiveM CEF performance.
+   ============================================================================ */
+
+/* Make the 20-style F9 menu grid fit cleanly (5 cols x 4 rows) */
+#menu-overlay .z11-all-style-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+}
+#menu-overlay .z11-all-style-grid .menu-opt-btn {
+    padding: 7px 5px !important;
+    font-size: 9.5px !important;
+    line-height: 1.15 !important;
+    min-height: 32px !important;
+}
+
+/* ============================================================================
+   SHARED FORWARD-FACING STAGE & ZERO-OVERLAP PRIMITIVES
+   ============================================================================ */
+#speedo-container .rs3d-root {
+    --rs3d-primary: #38e8ff;
+    --rs3d-secondary: #ff4fd8;
+    --rs3d-danger: #ff3556;
+    --rs3d-warn: #ffb830;
+    --rs3d-ok: #3df2a0;
+    --rs3d-border: rgba(56, 232, 255, 0.38);
+    --rs3d-text: #eef6ff;
+    --rs3d-muted: rgba(188, 210, 235, 0.72);
+    --rs3d-scale: 1;
+    --drift-angle: 0deg;
+
+    position: relative;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    transform-origin: bottom left;
+    transform: scale(var(--rs3d-scale));
+    font-family: 'Orbitron', 'Inter', sans-serif;
+    color: var(--rs3d-text);
+    user-select: none;
+    pointer-events: none;
+    box-sizing: border-box;
+    padding: 4px;
+}
+
+#speedo-container .rs3d-root *,
+#speedo-container .rs3d-root *::before,
+#speedo-container .rs3d-root *::after {
+    box-sizing: border-box;
+}
+
+.rs3d-stage {
+    position: relative;
+    transition: box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.rs3d-num {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+}
+
+.rs3d-mono {
+    font-family: 'Share Tech Mono', 'Orbitron', monospace;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================================
+   INTERACTIVE DRIFT BANNER (Dedicated non-overlapping top slot)
+   ============================================================================ */
+.rs3d-drift-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 5px 11px;
+    border-radius: 8px;
+    background: linear-gradient(90deg, rgba(28, 12, 6, 0.94), rgba(42, 14, 24, 0.94));
+    border: 1.5px solid rgba(255, 138, 36, 0.85);
+    box-shadow: 0 0 18px rgba(255, 110, 24, 0.45), inset 0 0 12px rgba(255, 138, 36, 0.18);
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-width: 0;
+    overflow: hidden;
+    transition: opacity 0.16s ease, transform 0.16s ease, max-height 0.18s ease, padding 0.18s ease, border-width 0.18s ease;
+}
+
+.rs3d-root.rs3d-drifting .rs3d-drift-banner {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    max-height: 36px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    border-width: 1.5px;
+}
+
+.rs3d-root.rs3d-drifting-high .rs3d-drift-banner {
+    border-color: #ff36c7;
+    background: linear-gradient(90deg, rgba(36, 8, 28, 0.95), rgba(54, 10, 24, 0.95));
+    box-shadow: 0 0 22px rgba(255, 54, 199, 0.60), inset 0 0 14px rgba(255, 54, 199, 0.25);
+}
+
+.rs3d-drift-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 1.4px;
+    color: #ffbe42;
+    text-shadow: 0 0 10px rgba(255, 148, 36, 0.75);
+}
+
+.rs3d-root.rs3d-drifting-high .rs3d-drift-left {
+    color: #ff6be0;
+    text-shadow: 0 0 12px rgba(255, 54, 199, 0.85);
+}
+
+.rs3d-drift-arrows {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    letter-spacing: -1px;
+    color: #ff7b29;
+    animation: rs3d-drift-blink 0.36s ease-in-out infinite alternate;
+}
+
+@keyframes rs3d-drift-blink {
+    from { opacity: 1; }
+    to   { opacity: 0.35; }
+}
+
+.rs3d-drift-metrics {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.rs3d-drift-angle {
+    color: #ffffff;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(255, 138, 36, 0.25);
+    border: 1px solid rgba(255, 180, 66, 0.55);
+}
+
+.rs3d-drift-score {
+    color: #4effb8;
+    text-shadow: 0 0 8px rgba(78, 255, 184, 0.55);
+}
+
+/* Drift aura on the main stage when sliding */
+.rs3d-root.rs3d-drifting .rs3d-stage {
+    border-color: rgba(255, 138, 36, 0.88) !important;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.65), 0 0 26px rgba(255, 120, 28, 0.45) !important;
+}
+
+.rs3d-root.rs3d-drifting-high .rs3d-stage {
+    border-color: rgba(255, 54, 199, 0.92) !important;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.70), 0 0 32px rgba(255, 54, 199, 0.55) !important;
+}
+
+/* Shared Vehicle Header */
+.rs3d-top-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+}
+
+.rs3d-veh-name {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.3px;
+    color: var(--rs3d-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 185px;
+    text-transform: uppercase;
+    text-shadow: 0 0 8px rgba(56, 232, 255, 0.40);
+}
+
+.rs3d-badge {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 1.1px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--rs3d-border);
+    color: var(--rs3d-text);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.rs3d-root.rs3d-crit .rs3d-badge {
+    background: rgba(255, 53, 86, 0.28);
+    border-color: var(--rs3d-danger);
+    color: #fff;
+    box-shadow: 0 0 12px rgba(255, 53, 86, 0.60);
+}
+
+/* Shared 6 Status Icons */
+.rs3d-icons {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+}
+
+.rs3d-ico {
+    width: 24px;
+    height: 20px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    color: rgba(200, 218, 240, 0.34);
+    transition: color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+    flex-shrink: 0;
+}
+
+.rs3d-ico svg {
+    width: 13px;
+    height: 13px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.rs3d-ico.active {
+    color: var(--rs3d-ok);
+    border-color: rgba(61, 242, 160, 0.55);
+    background: rgba(61, 242, 160, 0.12);
+    box-shadow: 0 0 8px rgba(61, 242, 160, 0.30);
+}
+.rs3d-ico[data-ico="lights"].active {
+    color: #5ee6ff;
+    border-color: rgba(94, 230, 255, 0.55);
+    background: rgba(94, 230, 255, 0.12);
+}
+.rs3d-ico[data-ico="highbeam"].active {
+    color: #6b9bff;
+    border-color: rgba(107, 155, 255, 0.65);
+    background: rgba(107, 155, 255, 0.16);
+}
+.rs3d-ico[data-ico="harness"].active {
+    color: #c57dff;
+    border-color: rgba(197, 125, 255, 0.65);
+    background: rgba(197, 125, 255, 0.16);
+}
+.rs3d-ico.warn {
+    color: var(--rs3d-warn);
+    border-color: rgba(255, 184, 48, 0.65);
+    background: rgba(255, 184, 48, 0.14);
+}
+.rs3d-ico.crit {
+    color: var(--rs3d-danger);
+    border-color: rgba(255, 53, 86, 0.80);
+    background: rgba(255, 53, 86, 0.20);
+    animation: rs3d-pulse 0.72s ease-in-out infinite alternate;
+}
+
+@keyframes rs3d-pulse {
+    from { opacity: 1; }
+    to   { opacity: 0.45; }
+}
+
+/* Shared 3 Telemetry Bars (Fuel / Eng / NOS) */
+.rs3d-bars {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.rs3d-bar-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.rs3d-bar-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px;
+    font-size: 9px;
+    letter-spacing: 0.8px;
+    color: var(--rs3d-muted);
+}
+
+.rs3d-bar-head b {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--rs3d-text);
+    font-weight: 700;
+}
+
+.rs3d-bar-track {
+    height: 6px;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.09);
+    overflow: hidden;
+}
+
+.rs3d-bar-fill {
+    height: 100%;
+    width: 100%;
+    border-radius: 99px;
+    transition: width 0.12s linear;
+}
+
+.rs3d-bar-item[data-bar="fuel"] .rs3d-bar-fill   { background: linear-gradient(90deg, #ff9922, #ffda54); }
+.rs3d-bar-item[data-bar="engine"] .rs3d-bar-fill { background: linear-gradient(90deg, #27d69b, #69ffcf); }
+.rs3d-bar-item[data-bar="nos"] .rs3d-bar-fill    { background: linear-gradient(90deg, #ff3e7f, #38e8ff); }
+.rs3d-bar-item.low .rs3d-bar-fill                { background: linear-gradient(90deg, #ff2a4d, #ff6c52); }
+
+/* Warning & Redline */
+.rs3d-root.rs3d-warn .rs3d-speed-val { color: var(--rs3d-warn) !important; }
+.rs3d-root.rs3d-crit .rs3d-speed-val,
+.rs3d-root.rs3d-redline .rs3d-gear-val { color: var(--rs3d-danger) !important; }
+.rs3d-root.rs3d-nos-hot .rs3d-stage { box-shadow: 0 0 26px rgba(56, 232, 255, 0.50), 0 0 38px rgba(255, 79, 216, 0.28); }
+
+/* ============================================================================
+   1–8: FORWARD-FACING DIGITAL & HYBRID STYLES (NO PERMANENT TILT)
+   ============================================================================ */
+
+/* 1. APEX -> HYPER-APEX */
+.rs3d-root[data-style="apex"] { --rs3d-primary: #b8ff3c; --rs3d-secondary: #ffaa24; --rs3d-border: rgba(184, 255, 60, 0.42); }
+.rs3d-root[data-style="apex"] .rs3d-stage {
+    width: 340px; padding: 13px 15px 12px; border-radius: 12px;
+    background: linear-gradient(180deg, rgba(16, 22, 32, 0.94), rgba(8, 12, 18, 0.94));
+    border: 1px solid var(--rs3d-border); border-left: 4px solid var(--rs3d-primary);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.62), inset 0 1px 0 rgba(255,255,255,0.10);
+    display: grid; gap: 9px;
+}
+.rs3d-apex-rpm { display: grid; grid-template-columns: repeat(20, 1fr); gap: 3px; height: 11px; }
+.rs3d-apex-seg { border-radius: 2px; background: rgba(255,255,255,0.09); transition: background 0.08s ease; }
+.rs3d-apex-seg.lit { background: var(--rs3d-primary); box-shadow: 0 0 7px rgba(184,255,60,0.60); }
+.rs3d-apex-seg.lit.mid { background: var(--rs3d-secondary); box-shadow: 0 0 7px rgba(255,170,36,0.60); }
+.rs3d-apex-seg.lit.red { background: var(--rs3d-danger); box-shadow: 0 0 9px rgba(255,59,79,0.85); }
+.rs3d-apex-main { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 12px; }
+.rs3d-apex-speed-wrap { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.rs3d-root[data-style="apex"] .rs3d-speed-val { font-size: 54px; line-height: 0.94; font-weight: 900; color: #f6fff0; }
+.rs3d-unit { font-size: 11px; font-weight: 700; letter-spacing: 1.6px; color: var(--rs3d-primary); }
+.rs3d-gear-box {
+    width: 56px; height: 52px; border-radius: 8px;
+    background: rgba(255,255,255,0.05); border: 1px solid var(--rs3d-border);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.rs3d-gear-box small { font-size: 8px; letter-spacing: 1.2px; color: var(--rs3d-muted); }
+.rs3d-gear-box strong { font-size: 26px; line-height: 1; font-weight: 900; color: var(--rs3d-primary); }
+
+/* 2. CLASSIC -> SUPERCAR BAY */
+.rs3d-root[data-style="classic"] { --rs3d-primary: #f5c85b; --rs3d-secondary: #ff6e38; --rs3d-border: rgba(245, 200, 91, 0.44); }
+.rs3d-root[data-style="classic"] .rs3d-stage {
+    width: 350px; padding: 13px 15px 12px; border-radius: 22px 22px 12px 12px;
+    background: radial-gradient(circle at 50% 0%, rgba(44, 34, 20, 0.94), rgba(9, 10, 15, 0.95) 72%);
+    border: 1.5px solid var(--rs3d-border); border-top: 3px solid #f5c85b;
+    box-shadow: 0 14px 30px rgba(0,0,0,0.65); display: grid; gap: 8px;
+}
+.rs3d-bay-gauge { position: relative; height: 106px; display: grid; place-items: center; }
+.rs3d-bay-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.rs3d-bay-track { fill: none; stroke: rgba(255,255,255,0.10); stroke-width: 10; stroke-linecap: round; }
+.rs3d-bay-arc { fill: none; stroke: url(#rs3d-bay-grad); stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset 0.1s linear; }
+.rs3d-bay-center { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; margin-top: 22px; }
+.rs3d-bay-row { display: flex; align-items: baseline; gap: 8px; }
+.rs3d-root[data-style="classic"] .rs3d-speed-val { font-size: 46px; line-height: 0.95; font-weight: 900; color: #fff8e6; }
+.rs3d-bay-gear-pill { padding: 3px 9px; border-radius: 6px; background: rgba(245,200,91,0.16); border: 1px solid rgba(245,200,91,0.55); color: #f5c85b; font-size: 16px; font-weight: 900; }
+.rs3d-bay-sub { display: flex; align-items: center; gap: 10px; font-size: 10px; letter-spacing: 1.4px; color: var(--rs3d-muted); margin-top: 3px; }
+
+/* 3. NEON -> CYBER-PRISM */
+.rs3d-root[data-style="neon"] { --rs3d-primary: #00f0ff; --rs3d-secondary: #ff46d7; --rs3d-border: rgba(0, 240, 255, 0.48); }
+.rs3d-root[data-style="neon"] .rs3d-stage {
+    width: 340px; padding: 13px 15px; border-radius: 14px;
+    background: linear-gradient(145deg, rgba(10, 14, 34, 0.92), rgba(18, 8, 32, 0.92));
+    border: 1.5px solid var(--rs3d-border);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.65), 0 0 22px rgba(0,240,255,0.20), inset 0 0 18px rgba(255,70,215,0.10);
+    display: grid; gap: 9px;
+}
+.rs3d-prism-hero {
+    display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px;
+    padding: 9px 12px; border-radius: 10px;
+    background: linear-gradient(90deg, rgba(0,240,255,0.10), rgba(255,70,215,0.10));
+    border: 1px solid rgba(0,240,255,0.32);
+}
+.rs3d-root[data-style="neon"] .rs3d-speed-val { font-size: 52px; line-height: 0.94; font-weight: 900; color: #e9ffff; text-shadow: 0 0 14px rgba(0,240,255,0.65), 2px 0 0 rgba(255,70,215,0.50); }
+.rs3d-prism-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.rs3d-prism-gear { font-size: 24px; font-weight: 900; color: var(--rs3d-secondary); line-height: 1; }
+.rs3d-rpm-bar { height: 7px; border-radius: 99px; background: rgba(255,255,255,0.08); overflow: hidden; }
+.rs3d-rpm-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #00f0ff, #ff46d7, #ff2e63); transition: width 0.09s linear; }
+
+/* 4. MINIMAL -> STEALTH VISOR */
+.rs3d-root[data-style="minimal"] { --rs3d-primary: #63f5ff; --rs3d-border: rgba(99, 245, 255, 0.36); }
+.rs3d-root[data-style="minimal"] .rs3d-stage {
+    width: 332px; padding: 12px 15px 11px; border-radius: 14px 14px 28px 28px;
+    background: linear-gradient(180deg, rgba(8, 16, 26, 0.86), rgba(5, 10, 18, 0.92));
+    border: 1px solid rgba(99, 245, 255, 0.25); border-top: 2.5px solid rgba(99, 245, 255, 0.70);
+    box-shadow: 0 12px 26px rgba(0,0,0,0.58); display: grid; gap: 8px;
+}
+.rs3d-visor-mid { display: grid; grid-template-columns: 52px 1fr 52px; align-items: center; gap: 8px; }
+.rs3d-visor-wing { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; border-radius: 6px; background: rgba(99,245,255,0.06); border: 1px solid rgba(99,245,255,0.24); }
+.rs3d-visor-wing small { font-size: 8px; letter-spacing: 1px; color: var(--rs3d-muted); }
+.rs3d-visor-wing strong { font-size: 18px; font-weight: 800; color: var(--rs3d-primary); }
+.rs3d-visor-center { text-align: center; display: flex; flex-direction: column; align-items: center; }
+.rs3d-root[data-style="minimal"] .rs3d-speed-val { font-size: 52px; line-height: 0.92; font-weight: 900; color: #f4fdff; }
+.rs3d-visor-horizon { width: 100%; height: 4px; margin-top: 5px; background: rgba(99,245,255,0.14); border-radius: 99px; overflow: hidden; }
+.rs3d-visor-horizon i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, #63f5ff, #ffffff); transition: width 0.1s linear; }
+
+/* 5. TURBO -> GYRO-TURBINE */
+.rs3d-root[data-style="turbo"] { --rs3d-primary: #3bbdff; --rs3d-secondary: #ff6b35; --rs3d-border: rgba(59, 189, 255, 0.45); }
+.rs3d-root[data-style="turbo"] .rs3d-stage {
+    width: 364px; padding: 12px 14px; border-radius: 16px;
+    background: linear-gradient(135deg, rgba(10, 16, 28, 0.94), rgba(7, 11, 20, 0.94));
+    border: 1.5px solid var(--rs3d-border); box-shadow: 0 14px 28px rgba(0,0,0,0.64);
+    display: grid; grid-template-columns: 138px 1fr; gap: 14px; align-items: center;
+}
+.rs3d-gyro-core { position: relative; width: 138px; height: 138px; display: grid; place-items: center; }
+.rs3d-gyro-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px dashed rgba(59,189,255,0.55); animation: rs3d-spin-cw 8s linear infinite; }
+.rs3d-gyro-ring-inner { position: absolute; inset: 12px; border-radius: 50%; border: 2px solid rgba(255,107,53,0.55); border-left-color: transparent; border-right-color: transparent; animation: rs3d-spin-ccw 4.5s linear infinite; }
+@keyframes rs3d-spin-cw  { to { transform: rotate(360deg); } }
+@keyframes rs3d-spin-ccw { to { transform: rotate(-360deg); } }
+.rs3d-gyro-svg { position: absolute; inset: 4px; width: calc(100% - 8px); height: calc(100% - 8px); transform: rotate(-90deg); }
+.rs3d-gyro-readout { position: relative; z-index: 2; text-align: center; display: flex; flex-direction: column; align-items: center; }
+.rs3d-root[data-style="turbo"] .rs3d-speed-val { font-size: 36px; line-height: 1; font-weight: 900; color: #eef9ff; }
+.rs3d-gyro-gear { margin-top: 4px; padding: 2px 9px; border-radius: 99px; background: rgba(59,189,255,0.18); border: 1px solid rgba(59,189,255,0.60); font-size: 13px; font-weight: 900; color: #7ee2ff; }
+.rs3d-gyro-pod { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+.rs3d-gyro-pod .rs3d-bars { grid-template-columns: 1fr; gap: 6px; }
+
+/* 6. VOLT -> ORBITAL RING */
+.rs3d-root[data-style="volt"] { --rs3d-primary: #2fd6ff; --rs3d-secondary: #8a7dff; --rs3d-border: rgba(47, 214, 255, 0.45); }
+.rs3d-root[data-style="volt"] .rs3d-stage {
+    width: 344px; padding: 13px 15px 12px; border-radius: 16px;
+    background: radial-gradient(circle at 50% 35%, rgba(20, 32, 58, 0.94), rgba(7, 10, 20, 0.95) 76%);
+    border: 1.5px solid var(--rs3d-border); box-shadow: 0 14px 30px rgba(0,0,0,0.66);
+    display: grid; gap: 9px;
+}
+.rs3d-orbital-deck { position: relative; height: 92px; display: flex; align-items: center; justify-content: center; gap: 16px; border-radius: 12px; background: rgba(47,214,255,0.06); border: 1px solid rgba(47,214,255,0.24); }
+.rs3d-root[data-style="volt"] .rs3d-speed-val { font-size: 52px; line-height: 0.95; font-weight: 900; color: #eefbff; }
+.rs3d-orbital-meta { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.rs3d-drive-mode { font-size: 10px; font-weight: 800; letter-spacing: 1.4px; padding: 2px 7px; border-radius: 4px; background: rgba(138,125,255,0.22); border: 1px solid rgba(138,125,255,0.60); color: #c8c1ff; }
+
+/* 7. SURVIVAL -> JDM DRIFT-TACH */
+.rs3d-root[data-style="survival"] { --rs3d-primary: #ff5e2b; --rs3d-secondary: #ffd038; --rs3d-border: rgba(255, 94, 43, 0.48); }
+.rs3d-root[data-style="survival"] .rs3d-stage {
+    width: 350px; padding: 13px 15px 12px; border-radius: 12px;
+    background: linear-gradient(135deg, rgba(22, 11, 14, 0.95), rgba(10, 10, 18, 0.95));
+    border: 1.5px solid var(--rs3d-border); border-right: 4px solid var(--rs3d-secondary);
+    box-shadow: 0 14px 30px rgba(0,0,0,0.68); display: grid; gap: 9px;
+}
+.rs3d-jdm-shiftbar { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; }
+.rs3d-jdm-led { height: 7px; border-radius: 99px; background: rgba(255,255,255,0.10); transition: background 0.08s ease; }
+.rs3d-jdm-led.lit.g { background: #3df2a0; box-shadow: 0 0 8px #3df2a0; }
+.rs3d-jdm-led.lit.y { background: #ffd038; box-shadow: 0 0 8px #ffd038; }
+.rs3d-jdm-led.lit.r { background: #ff2547; box-shadow: 0 0 10px #ff2547; }
+.rs3d-jdm-main { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; }
+.rs3d-root[data-style="survival"] .rs3d-speed-val { font-size: 54px; line-height: 0.92; font-weight: 900; color: #fff6ee; }
+.rs3d-jdm-gearbox { width: 58px; height: 54px; border-radius: 10px; background: linear-gradient(180deg, rgba(255,94,43,0.25), rgba(255,208,56,0.10)); border: 1.5px solid rgba(255,208,56,0.65); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.rs3d-jdm-gearbox small { font-size: 8px; letter-spacing: 1.2px; color: #ffd038; }
+.rs3d-jdm-gearbox strong { font-size: 26px; line-height: 1; font-weight: 900; color: #fff; }
+
+/* 8. CLUSTER -> CHRONO BLADE (Integrated 6-Stat Survival Deck) */
+.rs3d-root[data-style="cluster"] { --rs3d-primary: #34cfff; --rs3d-secondary: #ff47c2; --rs3d-border: rgba(52, 207, 255, 0.45); }
+.rs3d-root[data-style="cluster"] .rs3d-stage {
+    width: 390px; padding: 13px 15px 12px; border-radius: 14px;
+    background: linear-gradient(135deg, rgba(8, 15, 28, 0.95), rgba(14, 10, 26, 0.94));
+    border: 1.5px solid var(--rs3d-border); border-top: 3px solid var(--rs3d-primary);
+    box-shadow: 0 14px 32px rgba(0,0,0,0.68); display: grid; gap: 9px;
+}
+.rs3d-blade-hero { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; }
+.rs3d-blade-speed-block { display: flex; align-items: baseline; gap: 8px; }
+.rs3d-root[data-style="cluster"] .rs3d-speed-val { font-size: 50px; line-height: 0.92; font-weight: 900; color: #f0fbff; }
+.rs3d-cluster-deck { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.10); }
+.rs3d-cstat { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 6px; padding: 5px 5px 4px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.rs3d-cstat-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 8px; color: var(--rs3d-muted); }
+.rs3d-cstat-head b { font-family: 'Share Tech Mono', monospace; font-size: 9px; color: #fff; }
+.rs3d-cstat-track { height: 4px; border-radius: 99px; background: rgba(255,255,255,0.09); overflow: hidden; }
+.rs3d-cstat-fill { height: 100%; width: 100%; border-radius: 99px; transition: width 0.14s linear; }
+.rs3d-cstat.low { border-color: rgba(255,53,86,0.65); }
+
+/* ============================================================================
+   9–18: 10 NEW FORWARD-FACING ANALOG NEEDLE & DRIFT-INTERACTIVE VARIETIES
+   ============================================================================ */
+
+/* Shared SVG Needle Dial Base */
+.rs3d-dial-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.rs3d-needle-group {
+    transition: transform 0.08s cubic-bezier(0.22, 1, 0.36, 1);
+    transform-origin: 100px 100px;
+}
+
+.rs3d-dial-tick { stroke: rgba(220, 236, 255, 0.42); stroke-width: 1.8; stroke-linecap: round; }
+.rs3d-dial-tick.major { stroke: rgba(240, 248, 255, 0.88); stroke-width: 2.6; }
+.rs3d-dial-tick.redzone { stroke: #ff3556; }
+.rs3d-dial-num { font-family: 'Share Tech Mono', monospace; font-size: 11px; font-weight: 700; fill: rgba(230, 242, 255, 0.82); text-anchor: middle; dominant-baseline: central; }
+.rs3d-dial-num.redzone { fill: #ff4c68; }
+
+/* Standard Single-Dial + Right Telemetry Pod Layout */
+.rs3d-needle-card {
+    width: 382px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    display: grid;
+    grid-template-columns: 158px 1fr;
+    gap: 14px;
+    align-items: center;
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.68), inset 0 1px 0 rgba(255, 255, 255, 0.10);
+}
+
+.rs3d-dial-wrap {
+    position: relative;
+    width: 158px;
+    height: 158px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+}
+
+.rs3d-dial-digital {
+    position: absolute;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+    line-height: 1;
+}
+
+.rs3d-dial-digital .rs3d-speed-val {
+    font-size: 24px;
+    font-weight: 900;
+    color: #fff;
+}
+
+.rs3d-dial-digital .rs3d-unit {
+    font-size: 8px;
+    letter-spacing: 1.4px;
+    margin-top: 2px;
+}
+
+.rs3d-pod-col {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    min-width: 0;
+}
+
+.rs3d-pod-col .rs3d-bars {
+    grid-template-columns: 1fr;
+    gap: 6px;
+}
+
+.rs3d-pod-readout {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.rs3d-pod-speed {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+}
+
+.rs3d-pod-speed .rs3d-speed-val {
+    font-size: 32px;
+    line-height: 1;
+    font-weight: 900;
+    color: #ffffff;
+}
+
+/* 9. GTNEEDLE -> GT DUAL NEEDLE (Twin-Pod Analog Supercar Cluster) */
+.rs3d-root[data-style="gtneedle"] { --rs3d-primary: #ff4757; --rs3d-secondary: #ffba3b; --rs3d-border: rgba(255, 71, 87, 0.45); }
+.rs3d-root[data-style="gtneedle"] .rs3d-stage {
+    width: 414px; padding: 12px 14px; border-radius: 18px;
+    background: linear-gradient(180deg, rgba(16, 18, 24, 0.96), rgba(8, 9, 14, 0.96));
+    border: 1.5px solid var(--rs3d-border); box-shadow: 0 14px 32px rgba(0,0,0,0.72);
+    display: grid; gap: 9px;
+}
+.rs3d-gt-twins {
+    display: grid; grid-template-columns: 146px 1fr 146px; gap: 8px; align-items: center;
+}
+.rs3d-gt-dial {
+    position: relative; width: 146px; height: 146px; border-radius: 50%;
+    background: radial-gradient(circle at 50% 45%, #191d28, #080a10 74%);
+    border: 2px solid rgba(255,255,255,0.16);
+    box-shadow: inset 0 0 18px rgba(0,0,0,0.85);
+}
+.rs3d-gt-center {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    padding: 8px 6px; border-radius: 10px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10);
+}
+.rs3d-gt-center .rs3d-gear-val { font-size: 34px; line-height: 1; font-weight: 900; color: #ff4757; text-shadow: 0 0 12px rgba(255,71,87,0.55); }
+.rs3d-gt-center .rs3d-speed-val { font-size: 20px; font-weight: 800; color: #fff; }
+.rs3d-gt-foot { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
+
+/* 10. CHRONOGRAPH -> LUXURY SWISS CHRONOGRAPH DIAL */
+.rs3d-root[data-style="chronograph"] { --rs3d-primary: #d8c38a; --rs3d-secondary: #8ea7c4; --rs3d-border: rgba(216, 195, 138, 0.48); }
+.rs3d-root[data-style="chronograph"] .rs3d-stage {
+    background: linear-gradient(145deg, rgba(16, 18, 22, 0.96), rgba(9, 10, 14, 0.96));
+    border: 1.5px solid var(--rs3d-border);
+}
+.rs3d-root[data-style="chronograph"] .rs3d-dial-wrap {
+    background: radial-gradient(circle at 50% 45%, #1b2029, #090b10 75%);
+    border: 3px solid #c7b075;
+    box-shadow: inset 0 0 18px rgba(0,0,0,0.85), 0 0 14px rgba(216, 195, 138, 0.22);
+}
+
+/* 11. MUSCLE -> CLASSIC AMERICAN MUSCLE V8 TACH */
+.rs3d-root[data-style="muscle"] { --rs3d-primary: #ff7a1f; --rs3d-secondary: #ffcf4d; --rs3d-border: rgba(255, 122, 31, 0.52); }
+.rs3d-root[data-style="muscle"] .rs3d-stage {
+    background: linear-gradient(180deg, rgba(22, 14, 10, 0.96), rgba(10, 8, 8, 0.96));
+    border: 2px solid rgba(220, 225, 235, 0.42);
+    border-left: 4px solid #ff7a1f;
+}
+.rs3d-root[data-style="muscle"] .rs3d-dial-wrap {
+    background: radial-gradient(circle at 50% 45%, #221c18, #090706 76%);
+    border: 4px solid #bcc4cf;
+    box-shadow: inset 0 0 22px rgba(0,0,0,0.92), 0 0 12px rgba(255, 122, 31, 0.25);
+}
+
+/* 12. HYPERNEEDLE -> HYPERCAR LASER NEEDLE */
+.rs3d-root[data-style="hyperneedle"] { --rs3d-primary: #00e5ff; --rs3d-secondary: #ff2e63; --rs3d-border: rgba(0, 229, 255, 0.48); }
+.rs3d-root[data-style="hyperneedle"] .rs3d-stage {
+    background: linear-gradient(135deg, rgba(8, 16, 28, 0.95), rgba(10, 8, 22, 0.96));
+    border: 1.5px solid var(--rs3d-border);
+}
+.rs3d-root[data-style="hyperneedle"] .rs3d-dial-wrap {
+    background: radial-gradient(circle at 50% 50%, rgba(0, 42, 62, 0.85), rgba(6, 10, 20, 0.96) 72%);
+    border: 2px solid rgba(0, 229, 255, 0.65);
+    box-shadow: inset 0 0 20px rgba(0, 229, 255, 0.18), 0 0 16px rgba(0, 229, 255, 0.24);
+}
+
+/* 13. DRIFTKING -> DRIFT KING ANGLE PROTRACTOR + NEEDLE */
+.rs3d-root[data-style="driftking"] { --rs3d-primary: #ff6a1a; --rs3d-secondary: #ff2ed1; --rs3d-border: rgba(255, 106, 26, 0.54); }
+.rs3d-root[data-style="driftking"] .rs3d-stage {
+    background: linear-gradient(145deg, rgba(22, 10, 18, 0.96), rgba(10, 9, 16, 0.96));
+    border: 1.5px solid var(--rs3d-border);
+}
+.rs3d-root[data-style="driftking"] .rs3d-dial-wrap {
+    background: radial-gradient(circle at 50% 45%, #261220, #09070d 75%);
+    border: 2.5px solid #ff6a1a;
+    box-shadow: inset 0 0 18px rgba(0,0,0,0.88), 0 0 16px rgba(255, 106, 26, 0.28);
+}
+/* Live Slip Angle Protractor Bar */
+.rs3d-slip-meter {
+    display: flex; flex-direction: column; gap: 3px;
+    padding: 5px 8px; border-radius: 7px;
+    background: rgba(255, 106, 26, 0.08);
+    border: 1px solid rgba(255, 106, 26, 0.34);
+}
+.rs3d-slip-head {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 8.5px; letter-spacing: 1px; color: #ffb86c;
+}
+.rs3d-slip-track {
+    position: relative; height: 7px; border-radius: 99px;
+    background: rgba(255, 255, 255, 0.10); overflow: hidden;
+}
+.rs3d-slip-center {
+    position: absolute; left: 50%; top: 0; bottom: 0; width: 2px;
+    background: rgba(255, 255, 255, 0.55); transform: translateX(-50%);
+}
+.rs3d-slip-fill {
+    position: absolute; top: 0; bottom: 0; left: 50%; width: 0%;
+    background: linear-gradient(90deg, #ff8822, #ff2ed1);
+    transition: left 0.08s linear, width 0.08s linear;
+}
+
+/* 14. CYBERNEEDLE -> CYBERPUNK HOLO NEEDLE */
+.rs3d-root[data-style="cyberneedle"] { --rs3d-primary: #ffe600; --rs3d-secondary: #00f0ff; --rs3d-border: rgba(255, 230, 0, 0.52); }
+.rs3d-root[data-style="cyberneedle"] .rs3d-stage {
+    background: linear-gradient(135deg, rgba(16, 16, 10, 0.96), rgba(9, 12, 22, 0.96));
+    border: 1.5px solid var(--rs3d-border);
+    border-top: 3px solid #ffe600;
+}
+.rs3d-root[data-style="cyberneedle"] .rs3d-dial-wrap {
+    background: radial-gradient(circle at 50% 45%, #1c1d12, #07090e 75%);
+    border: 2px solid #ffe600;
+    box-shadow: inset 0 0 18px rgba(0, 240, 255, 0.14), 0 0 14px rgba(255, 230, 0, 0.22);
+}
+
+/* 15. RALLY -> RALLY PRO MOTORSPORT TACH */
+.rs3d-root[data-style="rally"] { --rs3d-primary: #ffd426; --rs3d-secondary: #ff3838; --rs3d-border: rgba(255, 212, 38, 0.52); }
+.rs3d-root[data-style="rally"] .rs3d-stage {
+    background: linear-gradient(180deg, rgba(20, 22, 26, 0.96), rgba(10, 11, 14, 0.96));
+    border: 2px solid var(--rs3d-border);
+}
+.rs3d-root[data-style="rally"] .rs3d-dial-wrap {
+    background: radial-gradient(circle at 50% 45%, #2b2918, #0c0d10 75%);
+    border: 3px solid #ffd426;
+    box-shadow: inset 0 0 16px rgba(0,0,0,0.88);
+}
+
+/* 16. AVIATION -> COCKPIT HORIZON INSTRUMENT */
+.rs3d-root[data-style="aviation"] { --rs3d-primary: #45ff9e; --rs3d-secondary: #ffb830; --rs3d-border: rgba(69, 255, 158, 0.45); }
+.rs3d-root[data-style="aviation"] .rs3d-stage {
+    background: linear-gradient(180deg, rgba(10, 19, 16, 0.96), rgba(6, 11, 10, 0.96));
+    border: 1.5px solid var(--rs3d-border);
+}
+.rs3d-root[data-style="aviation"] .rs3d-dial-wrap {
+    background: radial-gradient(circle at 50% 50%, #0d241c, #050c09 75%);
+    border: 2.5px solid rgba(69, 255, 158, 0.62);
+    box-shadow: inset 0 0 18px rgba(69, 255, 158, 0.14);
+}
+.rs3d-horizon-line {
+    position: absolute; left: 20px; right: 20px; top: 50%; height: 2px;
+    background: rgba(69, 255, 158, 0.42);
+    transform: rotate(var(--drift-angle));
+    transition: transform 0.1s linear;
+    pointer-events: none;
+}
+
+/* 17. RETRO80S -> OUTRUN SYNTHWAVE NEEDLE */
+.rs3d-root[data-style="retro80s"] { --rs3d-primary: #ff3cc7; --rs3d-secondary: #30e8ff; --rs3d-border: rgba(255, 60, 199, 0.55); }
+.rs3d-root[data-style="retro80s"] .rs3d-stage {
+    background: linear-gradient(180deg, rgba(26, 8, 38, 0.95), rgba(10, 8, 28, 0.96));
+    border: 1.5px solid var(--rs3d-border);
+    box-shadow: 0 14px 32px rgba(0,0,0,0.70), 0 0 22px rgba(255, 60, 199, 0.24);
+}
+.rs3d-root[data-style="retro80s"] .rs3d-dial-wrap {
+    background: radial-gradient(circle at 50% 45%, #301046, #0d0720 75%);
+    border: 2.5px solid #ff3cc7;
+    box-shadow: inset 0 0 20px rgba(48, 232, 255, 0.20), 0 0 16px rgba(255, 60, 199, 0.30);
+}
+
+/* 18. TOUGE -> INITIAL-D MOUNTAIN PASS TACH + DRIFT METER */
+.rs3d-root[data-style="touge"] { --rs3d-primary: #ffffff; --rs3d-secondary: #ff2e3d; --rs3d-border: rgba(255, 255, 255, 0.42); }
+.rs3d-root[data-style="touge"] .rs3d-stage {
+    background: linear-gradient(180deg, rgba(16, 16, 18, 0.97), rgba(7, 7, 9, 0.97));
+    border: 1.5px solid var(--rs3d-border);
+    border-left: 4px solid #ff2e3d;
+}
+.rs3d-root[data-style="touge"] .rs3d-dial-wrap {
+    background: radial-gradient(circle at 50% 45%, #161618, #050506 76%);
+    border: 3px solid #eaeaea;
+    box-shadow: inset 0 0 18px rgba(0,0,0,0.92);
+}
+
+/* Minimized mode safe-compact */
+#speedo-container.rs-speedo-minimized .rs3d-icons,
+#speedo-container.rs-speedo-minimized .rs3d-bars,
+#speedo-container.rs-speedo-minimized .rs3d-slip-meter {
+    display: none;
+}
+
+
+/* ============================================================================
+   v1.4.17 — 5 NEW STYLES: DRIFT BALANCE + NEON-PUNK 3D BOUNCING HIGH-TECH
+   ============================================================================ */
+
+/* Shared Drift Balance & Combo Telemetry Widgets */
+.rs3d-drift-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.rs3d-dstat {
+    padding: 4px 6px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.rs3d-dstat small {
+    font-size: 7.5px;
+    letter-spacing: 0.8px;
+    color: var(--rs3d-muted);
+    white-space: nowrap;
+}
+
+.rs3d-dstat strong {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    font-weight: 800;
+    color: #fff;
+    white-space: nowrap;
+}
+
+.rs3d-balance-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 5px 8px;
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 138, 36, 0.32);
+}
+
+.rs3d-balance-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 8px;
+    letter-spacing: 0.8px;
+    color: rgba(215, 232, 250, 0.80);
+}
+
+.rs3d-balance-head b {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 8.5px;
+    color: #3df2a0;
+}
+
+.rs3d-balance-track {
+    position: relative;
+    height: 8px;
+    border-radius: 99px;
+    background: linear-gradient(90deg, rgba(255, 66, 98, 0.35) 0%, rgba(61, 242, 160, 0.32) 38%, rgba(61, 242, 160, 0.32) 62%, rgba(255, 66, 98, 0.35) 100%);
+    overflow: hidden;
+}
+
+.rs3d-balance-sweet {
+    position: absolute;
+    left: 36%;
+    right: 36%;
+    top: 0;
+    bottom: 0;
+    border-left: 1px dashed rgba(61, 242, 160, 0.7);
+    border-right: 1px dashed rgba(61, 242, 160, 0.7);
+}
+
+.rs3d-balance-puck {
+    position: absolute;
+    top: 1px;
+    bottom: 1px;
+    width: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-radius: 99px;
+    background: #ffffff;
+    box-shadow: 0 0 10px #3df2a0;
+    transition: left 0.07s linear, background 0.14s ease;
+}
+
+/* 19. DRIFTPRO -> DRIFT PRO TELEMETRY (Needle + Balance + Combo x1-x5 + Peak Angle) */
+.rs3d-root[data-style="driftpro"] {
+    --rs3d-primary: #ff9f2e;
+    --rs3d-secondary: #ff369b;
+    --rs3d-border: rgba(255, 159, 46, 0.54);
+}
+.rs3d-root[data-style="driftpro"] .rs3d-stage {
+    width: 406px;
+    background: linear-gradient(145deg, rgba(20, 12, 24, 0.96), rgba(9, 9, 16, 0.96));
+    border: 1.5px solid var(--rs3d-border);
+    border-left: 4px solid #ff9f2e;
+}
+.rs3d-root[data-style="driftpro"] .rs3d-dial-wrap {
+    background: radial-gradient(circle at 50% 45%, #241422, #09070d 75%);
+    border: 2.5px solid #ff9f2e;
+    box-shadow: inset 0 0 18px rgba(0,0,0,0.88), 0 0 14px rgba(255, 159, 46, 0.25);
+}
+
+/* 20. DRIFTBAR -> SLIDE BALANCE WING (Forward-facing L/R Traction Wings + Tire Heat) */
+.rs3d-root[data-style="driftbar"] {
+    --rs3d-primary: #3df2a0;
+    --rs3d-secondary: #ff8c2b;
+    --rs3d-border: rgba(61, 242, 160, 0.48);
+}
+.rs3d-root[data-style="driftbar"] .rs3d-stage {
+    width: 382px;
+    padding: 13px 15px 12px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(10, 18, 22, 0.96), rgba(7, 10, 16, 0.96));
+    border: 1.5px solid var(--rs3d-border);
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.68);
+    display: grid;
+    gap: 8px;
+}
+.rs3d-slide-hero {
+    display: grid;
+    grid-template-columns: 58px 1fr 58px;
+    align-items: center;
+    gap: 10px;
+}
+.rs3d-wing-meter {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 6px 4px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.11);
+}
+.rs3d-wing-meter small { font-size: 7.5px; letter-spacing: 0.9px; color: var(--rs3d-muted); }
+.rs3d-wing-meter strong { font-size: 16px; font-weight: 900; color: var(--rs3d-primary); }
+.rs3d-slide-center {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.rs3d-root[data-style="driftbar"] .rs3d-speed-val {
+    font-size: 50px;
+    line-height: 0.94;
+    font-weight: 900;
+    color: #f3fff9;
+}
+
+/* ============================================================================
+   21–23: NEON-PUNK HIGH-TECH 3D BOUNCING VARIETIES
+   Spring-bounce in 3D space on gear shifts, RPM surges, NOS hits & drift combos
+   ============================================================================ */
+.rs3d-root[data-style="neonpunk"],
+.rs3d-root[data-style="cyberbounce"],
+.rs3d-root[data-style="hyperpulse"] {
+    perspective: 820px;
+}
+
+.rs3d-bounce-stage {
+    --bounce-y: 0px;
+    --bounce-z: 0px;
+    --bounce-rx: 0deg;
+    --bounce-scale: 1;
+    transform-style: preserve-3d;
+    transform: translateY(var(--bounce-y)) translateZ(var(--bounce-z)) rotateX(var(--bounce-rx)) scale(var(--bounce-scale));
+    transition: transform 0.12s cubic-bezier(0.22, 1.45, 0.36, 1), box-shadow 0.16s ease, border-color 0.16s ease;
+    will-change: transform;
+}
+
+/* 21. NEONPUNK -> NEON PUNK 3D (Cyberpunk 3D Bouncing Glitch Deck) */
+.rs3d-root[data-style="neonpunk"] {
+    --rs3d-primary: #ff2ef5;
+    --rs3d-secondary: #00f5ff;
+    --rs3d-border: rgba(255, 46, 245, 0.62);
+}
+.rs3d-root[data-style="neonpunk"] .rs3d-stage {
+    width: 368px;
+    padding: 13px 15px 12px;
+    border-radius: 14px 4px 14px 4px;
+    background: linear-gradient(135deg, rgba(24, 6, 38, 0.95), rgba(8, 14, 34, 0.95));
+    border: 1.5px solid var(--rs3d-border);
+    border-bottom: 3px solid #00f5ff;
+    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.72), 0 0 26px rgba(255, 46, 245, 0.28);
+    display: grid;
+    gap: 9px;
+}
+.rs3d-punk-hero {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 11px;
+    border-radius: 10px;
+    background: linear-gradient(90deg, rgba(255, 46, 245, 0.14), rgba(0, 245, 255, 0.12));
+    border: 1px solid rgba(0, 245, 255, 0.38);
+    transform: translateZ(20px);
+}
+.rs3d-root[data-style="neonpunk"] .rs3d-speed-val {
+    font-size: 54px;
+    line-height: 0.92;
+    font-weight: 900;
+    color: #fff2ff;
+    text-shadow: 2px 0 0 rgba(0, 245, 255, 0.75), -2px 0 0 rgba(255, 46, 245, 0.75), 0 0 18px rgba(255, 46, 245, 0.55);
+}
+
+/* 22. CYBERBOUNCE -> CYBER BOUNCE (3D Floating Reactor Core + Dual Energy Rails) */
+.rs3d-root[data-style="cyberbounce"] {
+    --rs3d-primary: #00ffd5;
+    --rs3d-secondary: #ffea00;
+    --rs3d-border: rgba(0, 255, 213, 0.56);
+}
+.rs3d-root[data-style="cyberbounce"] .rs3d-stage {
+    width: 374px;
+    padding: 13px 15px 12px;
+    border-radius: 16px;
+    background: radial-gradient(circle at 50% 28%, rgba(8, 38, 42, 0.95), rgba(6, 9, 20, 0.96) 76%);
+    border: 1.5px solid var(--rs3d-border);
+    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.72), 0 0 24px rgba(0, 255, 213, 0.24);
+    display: grid;
+    gap: 9px;
+}
+.rs3d-cb-core {
+    display: grid;
+    grid-template-columns: 14px 1fr 14px;
+    gap: 10px;
+    align-items: stretch;
+    transform: translateZ(22px);
+}
+.rs3d-cb-rail {
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+.rs3d-cb-rail i {
+    display: block;
+    width: 100%;
+    height: 0%;
+    border-radius: 99px;
+    background: linear-gradient(0deg, #00ffd5, #ffea00, #ff2e63);
+    transition: height 0.08s linear;
+}
+.rs3d-cb-center {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: rgba(0, 255, 213, 0.07);
+    border: 1px solid rgba(0, 255, 213, 0.34);
+}
+.rs3d-root[data-style="cyberbounce"] .rs3d-speed-val {
+    font-size: 52px;
+    line-height: 0.92;
+    font-weight: 900;
+    color: #ebfffb;
+    text-shadow: 0 0 18px rgba(0, 255, 213, 0.65);
+}
+
+/* 23. HYPERPULSE -> HYPER PULSE (3D Bouncing Shockwave Ring + Needle) */
+.rs3d-root[data-style="hyperpulse"] {
+    --rs3d-primary: #a855ff;
+    --rs3d-secondary: #00f0ff;
+    --rs3d-border: rgba(168, 85, 255, 0.60);
+}
+.rs3d-root[data-style="hyperpulse"] .rs3d-stage {
+    background: linear-gradient(135deg, rgba(18, 8, 36, 0.96), rgba(7, 12, 28, 0.96));
+    border: 1.5px solid var(--rs3d-border);
+    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.72), 0 0 26px rgba(168, 85, 255, 0.28);
+}
+.rs3d-root[data-style="hyperpulse"] .rs3d-dial-wrap {
+    background: radial-gradient(circle at 50% 45%, #241046, #070814 75%);
+    border: 2.5px solid #a855ff;
+    box-shadow: inset 0 0 20px rgba(0, 240, 255, 0.18), 0 0 18px rgba(168, 85, 255, 0.38);
+}

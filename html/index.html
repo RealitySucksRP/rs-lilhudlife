@@ -7,10 +7,428 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Share+Tech+Mono&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=1.4.12">
 <link rel="stylesheet" href="css/menu-v136.css">
-<link rel="stylesheet" href="css/menu-v137.css">
+<link rel="stylesheet" href="css/menu-v137.css?v=1.4.12">
+<link rel="stylesheet" href="css/menu-interactive.css?v=1.4.12">
 <link rel="stylesheet" href="css/weapon.css">
+<link rel="stylesheet" href="css/motion-v1413.css?v=1.4.13">
+<link rel="stylesheet" href="css/menu-orbit-v1414.css?v=1.4.14">
+<link rel="stylesheet" href="css/speedo-3d-v1417.css?v=1.4.17">
+<link rel="stylesheet" href="css/menu-polish-v1417.css?v=1.4.17">
+<style id="rs-hud-theme-critical-v1412">
+/* RS HUDLife 1.4.11 — functional menu-only neon themes and layout repairs.
+   Scoped to the editor; gameplay HUD colors and world transparency stay intact. */
+#menu-overlay {
+    --rs-menu-primary: #28ddff;
+    --rs-menu-secondary: #ff49bd;
+    --rs-menu-primary-rgb: 40, 221, 255;
+    --rs-menu-secondary-rgb: 255, 73, 189;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* Remove the legacy CSS-generated footer slogan underneath the real one.
+   It was the source of the doubled text in the screenshot. */
+#menu-overlay .menu-footer.zmenu-footer::before,
+#menu-overlay .menu-footer.zmenu-footer::after {
+    content: none !important;
+    display: none !important;
+    visibility: hidden !important;
+}
+#menu-overlay .menu-footer.zmenu-footer.z11-footer {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    padding: 6px 15px !important;
+    overflow: hidden !important;
+    isolation: isolate;
+}
+#menu-overlay .menu-footer .zfooter-copy {
+    display: block !important;
+    position: static !important;
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: auto !important;
+    line-height: 1.3 !important;
+    font-size: 8px !important;
+    font-weight: 700 !important;
+    letter-spacing: .9px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+    transform: none !important;
+    text-shadow: 0 0 6px rgba(var(--rs-menu-secondary-rgb), .28) !important;
+}
+#menu-overlay .menu-footer .zfooter-actions {
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto !important;
+    align-self: center !important;
+    margin-left: auto !important;
+}
+
+/* Give the RP text real line boxes instead of a forced single-line ellipsis. */
+#menu-overlay .z11-sidebar .z11-mode-card.z11-profile-card {
+    min-height: 78px !important;
+    padding: 7px 8px !important;
+    grid-template-columns: 37px minmax(0, 1fr) !important;
+    gap: 6px !important;
+    overflow: visible !important;
+    border-color: rgba(var(--rs-menu-secondary-rgb), .35) !important;
+}
+#menu-overlay .z11-profile-card .z11-mode-icon--rp {
+    width: 35px !important;
+    height: 35px !important;
+    border-color: rgba(var(--rs-menu-primary-rgb), .42) !important;
+}
+#menu-overlay .z11-profile-card .z11-mode-copy {
+    min-width: 0;
+    max-width: 100%;
+    overflow: visible;
+}
+#menu-overlay .z11-profile-card .zmode-label {
+    color: var(--z11-pink-2) !important;
+    font-size: 7.1px !important;
+    letter-spacing: .15px !important;
+    line-height: 1.25 !important;
+    overflow-wrap: normal !important;
+    white-space: normal !important;
+}
+#menu-overlay .z11-profile-card .zmode-state {
+    color: #53fac0 !important;
+    font-size: 12px !important;
+    line-height: 1.1 !important;
+}
+#menu-overlay .z11-profile-card .zmode-sub {
+    display: block !important;
+    margin-top: 3px !important;
+    color: rgba(199, 225, 240, .85) !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 6.4px !important;
+    line-height: 1.4 !important;
+    letter-spacing: 0 !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    word-break: normal !important;
+}
+#menu-overlay .z11-profile-card .rp-ring-outer { stroke: var(--rs-menu-primary) !important; }
+#menu-overlay .z11-profile-card .rp-ring-inner,
+#menu-overlay .z11-profile-card .rp-ticks { stroke: var(--rs-menu-secondary) !important; }
+
+/* Palette choices and the two native color inputs. */
+#menu-overlay .rs-theme-settings { overflow: visible !important; }
+#menu-overlay .rs-theme-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 13px;
+}
+#menu-overlay .rs-theme-preset {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    min-height: 43px;
+    padding: 7px 9px;
+    color: #cee7f7;
+    background: rgba(9, 18, 37, .85);
+    border: 1px solid rgba(123, 170, 235, .20);
+    border-radius: 5px;
+    font: 700 8px 'Orbitron', sans-serif;
+    letter-spacing: .5px;
+    transition: transform .12s ease, border-color .17s ease, background .17s ease, box-shadow .17s ease;
+}
+#menu-overlay .rs-theme-preset:hover {
+    transform: translateY(-2px);
+    color: #fff;
+    border-color: rgba(var(--rs-menu-primary-rgb), .65);
+}
+#menu-overlay .rs-theme-preset.active,
+#menu-overlay .rs-theme-preset[aria-pressed="true"] {
+    border-color: var(--rs-menu-primary);
+    color: #fff;
+    background: linear-gradient(90deg, rgba(var(--rs-menu-primary-rgb), .19), rgba(var(--rs-menu-secondary-rgb), .10));
+    box-shadow: inset 0 0 12px rgba(var(--rs-menu-primary-rgb), .11), 0 0 9px rgba(var(--rs-menu-primary-rgb), .08);
+}
+#menu-overlay .rs-theme-preset:focus-visible,
+#menu-overlay .rs-theme-picker input:focus-visible,
+#menu-overlay .rs-theme-reset:focus-visible { outline: 2px solid var(--rs-menu-primary); outline-offset: 2px; }
+#menu-overlay .rs-theme-preset-colors {
+    display: inline-flex;
+    width: 31px;
+    height: 25px;
+    flex: 0 0 31px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,.27);
+    background: linear-gradient(120deg, var(--swatch-a) 0 48%, var(--swatch-b) 52% 100%);
+    box-shadow: inset 0 0 6px rgba(255,255,255,.10), 0 0 10px rgba(0,0,0,.3);
+}
+#menu-overlay .rs-theme-custom-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 13px;
+}
+#menu-overlay .rs-theme-picker {
+    min-width: 0;
+    display: grid;
+    /* Compact two-row picker: avoids overflowing into the adjacent picker. */
+    grid-template-columns: minmax(42px, 1fr) 66px;
+    grid-template-areas: "picker-label picker-label" "picker-swatch picker-code";
+    grid-template-rows: auto 29px;
+    align-items: center;
+    column-gap: 8px;
+    row-gap: 5px;
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid rgba(127, 163, 235, .18);
+    background: rgba(5, 12, 27, .66);
+    color: #dbeeff;
+    font: 700 7px 'Orbitron', sans-serif;
+}
+#menu-overlay .rs-theme-picker > span {
+    grid-area: picker-label;
+    min-width: 0;
+    line-height: 1.15;
+}
+#menu-overlay .rs-theme-picker input[type=color] {
+    grid-area: picker-swatch;
+    justify-self: start;
+    cursor: pointer;
+    width: 42px;
+    height: 29px;
+    min-width: 42px;
+    padding: 1px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,.35);
+    background: rgba(3, 9, 20, .8);
+}
+#menu-overlay .rs-theme-picker output {
+    grid-area: picker-code;
+    justify-self: end;
+    display: block;
+    min-width: 66px;
+    white-space: nowrap;
+    text-align: right;
+    color: #b8d8e9;
+    font: 7px 'Share Tech Mono', monospace;
+    letter-spacing: .2px;
+}
+#menu-overlay .rs-theme-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 10px;
+    gap: 10px;
+    font: 700 8px 'Orbitron',sans-serif;
+    letter-spacing: 1px;
+    color: var(--rs-menu-primary);
+}
+#menu-overlay .rs-theme-reset {
+    cursor: pointer;
+    min-height: 29px;
+    padding: 5px 12px;
+    color: #f7e9fa;
+    font: 700 8px 'Orbitron',sans-serif;
+    border-radius: 5px;
+    border: 1px solid rgba(var(--rs-menu-secondary-rgb), .5);
+    background: rgba(var(--rs-menu-secondary-rgb), .13);
+}
+#menu-overlay .rs-theme-reset:hover { background: rgba(var(--rs-menu-secondary-rgb), .22); }
+#menu-overlay .rs-theme-hud-note { margin-top: 8px; }
+
+/* Dynamic color across the control deck, not just the palette swatches.
+   Override older hard-coded accents without altering gameplay HUD elements. */
+#menu-overlay .z11-sidebar .menu-nav-btn.active {
+    border-color: rgba(var(--rs-menu-primary-rgb), .70) !important;
+    box-shadow: inset 0 0 15px rgba(var(--rs-menu-primary-rgb), .14), 0 0 12px rgba(var(--rs-menu-primary-rgb), .13) !important;
+}
+#menu-overlay .z11-sidebar .menu-nav-btn::after {
+    background: linear-gradient(90deg, rgba(var(--rs-menu-primary-rgb), .12), transparent 58%, rgba(var(--rs-menu-secondary-rgb), .08)) !important;
+}
+#menu-overlay .z11-sidebar .menu-nav-btn.active .menu-nav-icon {
+    border-color: rgba(var(--rs-menu-primary-rgb), .55) !important;
+    background: rgba(var(--rs-menu-primary-rgb), .17) !important;
+}
+#menu-overlay .z11-sidebar .menu-nav-icon { border-color: rgba(var(--rs-menu-secondary-rgb), .23) !important; }
+#menu-overlay .menu-section-title::after {
+    background: linear-gradient(90deg, rgba(var(--rs-menu-primary-rgb), .42), transparent) !important;
+}
+#menu-overlay .z11-card::before {
+    background: linear-gradient(90deg, var(--rs-menu-primary), var(--rs-menu-secondary), transparent) !important;
+    box-shadow: 0 0 8px rgba(var(--rs-menu-primary-rgb), .4) !important;
+}
+#menu-overlay .menu-opt-btn.active {
+    border-color: rgba(var(--rs-menu-primary-rgb), .74) !important;
+    background: linear-gradient(180deg, rgba(var(--rs-menu-primary-rgb), .26), rgba(8, 22, 48, .91)) !important;
+    box-shadow: inset 0 0 12px rgba(var(--rs-menu-primary-rgb), .12), 0 0 8px rgba(var(--rs-menu-primary-rgb), .11) !important;
+}
+#menu-overlay .menu-opt-btn:hover { border-color: rgba(var(--rs-menu-primary-rgb), .57) !important; }
+#menu-overlay .menu-slider { background: linear-gradient(90deg, var(--rs-menu-primary), var(--rs-menu-secondary)) !important; }
+#menu-overlay .menu-slider::-webkit-slider-thumb { background: var(--rs-menu-primary) !important; }
+#menu-overlay .menu-toggle input:checked + .menu-toggle-slider { background: linear-gradient(90deg, var(--rs-menu-primary), var(--rs-menu-secondary)) !important; }
+#menu-overlay .z11-nos-card,
+#menu-overlay .z11-preview-card { border-color: rgba(var(--rs-menu-secondary-rgb), .38) !important; }
+#menu-overlay .z11-live-stage { border-color: rgba(var(--rs-menu-primary-rgb), .25) !important; }
+#menu-overlay .z11-hud-peek {
+    border-color: rgba(var(--rs-menu-secondary-rgb), .45) !important;
+    background: linear-gradient(90deg, rgba(var(--rs-menu-secondary-rgb), .12), rgba(var(--rs-menu-primary-rgb), .09)) !important;
+}
+#menu-overlay .z11-close {
+    border-color: rgba(var(--rs-menu-secondary-rgb), .39) !important;
+    background: rgba(var(--rs-menu-secondary-rgb), .14) !important;
+}
+#menu-overlay .menu-btn-secondary {
+    border-color: rgba(var(--rs-menu-secondary-rgb), .4) !important;
+    background: linear-gradient(180deg, rgba(var(--rs-menu-secondary-rgb), .17), rgba(12, 10, 27, .92)) !important;
+}
+#menu-overlay .menu-btn-primary {
+    border-color: rgba(var(--rs-menu-primary-rgb), .63) !important;
+    background: linear-gradient(90deg, rgba(var(--rs-menu-primary-rgb), .80), rgba(var(--rs-menu-secondary-rgb), .64)) !important;
+    color: #fff !important;
+    box-shadow: inset 0 0 9px rgba(255,255,255,.06), 0 0 11px rgba(var(--rs-menu-primary-rgb), .18) !important;
+}
+#menu-overlay .menu-container.zmenu-shell.z11-shell {
+    box-shadow: 0 22px 68px rgba(0,0,0,.73), 0 0 27px rgba(var(--rs-menu-primary-rgb), .16), 0 0 36px rgba(var(--rs-menu-secondary-rgb), .11) !important;
+}
+#menu-overlay .z11-mode-icon--rp { box-shadow: inset 0 0 17px rgba(var(--rs-menu-primary-rgb), .08) !important; }
+#menu-overlay .menu-section:not(.z11-map-card):hover {
+    border-color: rgba(var(--rs-menu-primary-rgb), .32) !important;
+    box-shadow: 0 13px 24px rgba(0,0,0,.29), inset 0 0 0 1px rgba(var(--rs-menu-primary-rgb), .07), 0 0 16px rgba(var(--rs-menu-primary-rgb), .13) !important;
+}
+#menu-overlay .menu-section:not(.z11-map-card)::after {
+    background: radial-gradient(160px circle at var(--rshud-glow-x, 50%) var(--rshud-glow-y, 50%), rgba(var(--rs-menu-primary-rgb), .16), rgba(var(--rs-menu-secondary-rgb), .045) 40%, transparent 72%) !important;
+}
+#menu-overlay :is(.menu-nav-btn, .menu-opt-btn, .menu-action-btn, .menu-btn, .rs-theme-preset):focus-visible {
+    outline-color: var(--rs-menu-primary) !important;
+}
+
+@media (max-width: 1280px), (max-height: 740px) {
+    #menu-overlay .z11-sidebar .z11-mode-card.z11-profile-card { min-height: 73px !important; }
+    #menu-overlay .z11-profile-card .zmode-sub { font-size: 6.1px !important; }
+}
+@media (max-width: 650px) {
+    #menu-overlay .rs-theme-preset-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    #menu-overlay .rs-theme-custom-controls { grid-template-columns: minmax(0,1fr); }
+}
+
+/* Exact sidebar-height repair: ten 36px navigation rows pushed the RP card
+   beneath the footer at 1080p and smaller. Give the card its own visible row. */
+#menu-overlay .z11-sidebar {
+    gap: 3px !important;
+    overflow: hidden !important;
+}
+#menu-overlay .z11-sidebar .menu-nav-btn {
+    min-height: 30px !important;
+    flex: 0 0 30px !important;
+    padding: 3px 7px !important;
+}
+#menu-overlay .z11-sidebar .menu-nav-icon {
+    width: 25px !important;
+    height: 25px !important;
+    font-size: 15px !important;
+}
+#menu-overlay .z11-sidebar .z11-mode-card.z11-profile-card {
+    flex: 0 0 auto !important;
+    margin-top: auto !important;
+}
+
+/* Brand, heartbeat, nav glyphs and particles follow the same active palette. */
+#menu-overlay .zmenu-brand-title .zbrand-pink {
+    color: var(--rs-menu-secondary) !important;
+    text-shadow: 0 0 8px rgba(var(--rs-menu-secondary-rgb), .42) !important;
+}
+#menu-overlay .zmenu-brand-title .zbrand-cyan {
+    color: var(--z11-cyan-2) !important;
+    text-shadow: 0 0 7px rgba(var(--rs-menu-primary-rgb), .38) !important;
+}
+#menu-overlay .z11-heart {
+    color: var(--rs-menu-secondary) !important;
+    text-shadow: 0 0 6px var(--rs-menu-secondary), 0 0 18px rgba(var(--rs-menu-secondary-rgb), .70) !important;
+}
+#menu-overlay .z11-sidebar .menu-nav-icon { color: var(--z11-pink-2) !important; }
+#menu-overlay .z11-sidebar .menu-nav-btn.active .menu-nav-icon { color: #f4faff !important; }
+#menu-overlay .menu-section-title { color: var(--z11-cyan-2) !important; }
+#menu-overlay .z11-heartbeat .z11-pulse-line { filter: drop-shadow(0 0 5px rgba(var(--rs-menu-primary-rgb), .75)); }
+
+/* Short 720–800px game windows: prevent sidebar items from pushing the RP
+   profile behind the sticky footer. Labels and icon silhouettes stay readable. */
+@media (max-height: 800px) {
+    #menu-overlay .z11-sidebar { gap: 2px !important; }
+    #menu-overlay .z11-sidebar .menu-nav-btn {
+        min-height: 25px !important;
+        flex: 0 0 25px !important;
+        padding: 2px 6px !important;
+    }
+    #menu-overlay .z11-sidebar .menu-nav-icon {
+        width: 22px !important;
+        height: 22px !important;
+        font-size: 14px !important;
+    }
+    #menu-overlay .z11-sidebar .z11-mode-card.z11-profile-card {
+        min-height: 70px !important;
+        padding: 6px !important;
+    }
+}
+
+
+/* v1.4.12: prevent text generated by any earlier stylesheet and leave the footer
+   left-hand side intentionally empty. Never place decorative copy over gameplay. */
+#menu-overlay .menu-footer.zmenu-footer::before,
+#menu-overlay .menu-footer.zmenu-footer::after,
+#menu-overlay .menu-footer.zmenu-footer .zfooter-copy {
+    content: none !important;
+    display: none !important;
+    visibility: hidden !important;
+}
+#menu-overlay .menu-footer.zmenu-footer {
+    justify-content: flex-end !important;
+    isolation: isolate;
+}
+/* No fallback native browser button chrome even if a user stylesheet intervenes. */
+#menu-overlay .rs-theme-preset,
+#menu-overlay .rs-theme-reset {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    box-sizing: border-box !important;
+}
+#menu-overlay .rs-theme-preset {
+    display: flex !important;
+    align-items: center !important;
+    border-radius: 5px !important;
+    background-color: rgba(9,18,37,.85) !important;
+    border: 1px solid rgba(123,170,235,.20) !important;
+    color: #cee7f7 !important;
+}
+#menu-overlay .rs-theme-preset:hover,
+#menu-overlay .rs-theme-preset.active,
+#menu-overlay .rs-theme-preset[aria-pressed="true"] {
+    color: #fff !important;
+    border-color: rgba(var(--rs-menu-primary-rgb), .70) !important;
+    background: linear-gradient(90deg, rgba(var(--rs-menu-primary-rgb), .19), rgba(var(--rs-menu-secondary-rgb), .11)) !important;
+}
+#menu-overlay .rs-theme-preset-grid { display:grid !important; }
+#menu-overlay .rs-theme-custom-controls { display:grid !important; }
+#menu-overlay .rs-theme-preset-colors { display:inline-flex !important; }
+#menu-overlay .rs-theme-picker { display:grid !important; }
+#menu-overlay .rs-theme-reset {
+    background: rgba(var(--rs-menu-secondary-rgb), .13) !important;
+    color: #f7e9fa !important;
+    border: 1px solid rgba(var(--rs-menu-secondary-rgb), .50) !important;
+}
+#menu-overlay .rs-theme-settings { min-width:0; }
+#menu-overlay .rs-theme-preset-grid { min-width:0; }
+
+</style>
 </head>
 <body>
 
@@ -34,15 +452,30 @@
 <div id="speedo-container" class="hidden" data-position="bottom-right"></div>
 <div id="status-container" class="hidden" data-position="top-right" data-shape="circle" data-icon-style="vivid"></div>
 
-<div id="weapon-container" class="hidden" data-style="arc" data-show-ammo-type="1" data-show-reserve="1" aria-label="Current weapon ammunition">
+<div id="weapon-container" class="hidden" data-style="arc" data-show-ammo-type="1" data-show-reserve="1" data-state="ready" data-mode="firearm" aria-label="Equipped weapon and available ammo" aria-live="off">
     <div class="rsw-panel">
+        <div class="rsw-scanline" aria-hidden="true"></div>
+        <div class="rsw-particles" id="weapon-particles" aria-hidden="true"></div>
         <svg class="rsw-arc" viewBox="0 0 66 121" aria-hidden="true">
             <path class="rsw-arc-track" d="M52 8 C 3 28 3 94 52 113" pathLength="100"/>
             <path class="rsw-arc-glow" d="M52 8 C 3 28 3 94 52 113" pathLength="100"/>
             <path class="rsw-arc-fill" id="weapon-arc-fill" d="M52 8 C 3 28 3 94 52 113" pathLength="100"/>
         </svg>
-        <div class="rsw-counter"><div class="rsw-numbers"><span id="weapon-clip">30</span><span id="weapon-reserve">19</span></div><span class="rsw-rule"></span><div class="rsw-ammo-type" id="weapon-ammo-type">RIFLE AMMO</div><div id="weapon-bullets" class="rsw-bullets"></div></div>
-        <div class="rsw-weapon"><div class="rsw-art"><img id="weapon-art" class="hidden" alt=""><div id="weapon-art-fallback"></div></div><div id="weapon-name" class="rsw-name">CARBINE RIFLE</div></div>
+        <div class="rsw-counter">
+            <div class="rsw-topline"><span id="weapon-mag-label">IN MAG</span><span id="weapon-status" class="rsw-state-label">READY</span></div>
+            <div class="rsw-numbers">
+                <span id="weapon-clip">30</span>
+                <div class="rsw-backup"><span class="rsw-backup-label">RESERVE</span><span id="weapon-reserve">19</span></div>
+            </div>
+            <span class="rsw-rule"></span>
+            <div class="rsw-ammo-type" id="weapon-ammo-type">RIFLE AMMO</div>
+            <div id="weapon-bullets" class="rsw-bullets" aria-hidden="true"></div>
+        </div>
+        <div class="rsw-weapon">
+            <div class="rsw-art"><img id="weapon-art" class="hidden" alt=""><div id="weapon-art-fallback"></div></div>
+            <div id="weapon-name" class="rsw-name">CARBINE RIFLE</div>
+            <div id="weapon-hint" class="rsw-hint">READY TO FIRE</div>
+        </div>
     </div>
 </div>
 
@@ -126,6 +559,7 @@
                     <span>PROFILE</span>
                     <strong>DEFAULT</strong>
                 </div>
+                <button class="rs-orbit-open" id="menu-orbit-toggle" type="button" aria-haspopup="dialog" aria-controls="menu-orbit" aria-expanded="false" title="Orbital quick navigation (Ctrl+K)"><span class="rs-orbit-mark" aria-hidden="true">◎</span> ORBIT</button>
                 <button class="menu-close-btn z11-close" id="menu-close-btn" aria-label="Close">✕</button>
             </div>
         </header>
@@ -143,12 +577,41 @@
                 <button class="menu-nav-btn" data-tab="money"><span class="menu-nav-icon">●</span><span class="znav-text"><b>PLAYER HUD</b><i>Money, ID &amp; Job</i></span></button>
                 <button class="menu-nav-btn" data-tab="system"><span class="menu-nav-icon">⚙</span><span class="znav-text"><b>SETTINGS</b><i>General Settings</i></span></button>
 
-                <div class="zmenu-sidebar-footer z11-mode-card">
-                    <div class="z11-mode-icon">☣</div>
-                    <div>
-                        <div class="zmode-label">ZOMBIE MODE</div>
-                        <div class="zmode-state">ACTIVE</div>
-                        <div class="zmode-sub">Survive. Adapt. Evolve.</div>
+                <div class="rs17-logo-stage" id="rs17-logo-stage" title="Reality Sucks RP">
+                    <div class="rs17-logo-aura"></div>
+                    <div class="rs17-logo-3d" id="rs17-logo-3d">
+                        <img src="assets/main-rs-logo.png" alt="Reality Sucks RP" class="rs17-logo-img" draggable="false">
+                    </div>
+                    <div class="rs17-logo-ring"></div>
+                </div>
+                <div class="zmenu-sidebar-footer z11-mode-card z11-profile-card rs17-profile-card">
+                    <div class="rs17-prof-top">
+                        <span class="rs17-prof-dot"></span>
+                        <span class="rs17-prof-kicker">HUD PROFILE</span>
+                        <span class="rs17-prof-ver">LIVE SYNC</span>
+                    </div>
+                    <div class="rs17-prof-main">
+                        <div class="rs17-prof-avatar" aria-hidden="true">
+                            <svg viewBox="0 0 36 36" fill="none">
+                                <defs>
+                                    <linearGradient id="rs17-hud-g" x1="4" y1="4" x2="32" y2="32">
+                                        <stop stop-color="#28ddff"/>
+                                        <stop offset="1" stop-color="#ff49bd"/>
+                                    </linearGradient>
+                                </defs>
+                                <rect x="6.5" y="7" width="23" height="18" rx="4.5" stroke="url(#rs17-hud-g)" stroke-width="1.8"/>
+                                <path d="M11 13.2h14" stroke="#87f3ff" stroke-width="1.7" stroke-linecap="round" opacity=".95"/>
+                                <path d="M11 17.3h8.2" stroke="#53fac0" stroke-width="1.7" stroke-linecap="round" opacity=".95"/>
+                                <circle cx="24.5" cy="17.1" r="2.6" stroke="#ffd36f" stroke-width="1.7"/>
+                                <path d="M14.5 29h7" stroke="#c8eaff" stroke-width="1.8" stroke-linecap="round"/>
+                                <path d="M18 24.8V29" stroke="#c8eaff" stroke-width="1.8" stroke-linecap="round"/>
+                                <circle cx="27.2" cy="11.3" r="1.4" fill="#ff49bd"/>
+                            </svg>
+                        </div>
+                        <div class="rs17-prof-copy">
+                            <div class="rs17-prof-state">ACTIVE</div>
+                            <div class="rs17-prof-sub">Live Sync &bull; Custom Layout Ready</div>
+                        </div>
                     </div>
                 </div>
             </nav>
@@ -250,14 +713,29 @@
                             <div class="menu-option-grid z11-all-style-grid">
                                 <button class="menu-opt-btn" data-setting="speedoStyle" data-value="halo">HALO LOGO</button>
                                 <button class="menu-opt-btn" data-setting="speedoStyle" data-value="vehicle">VEHICLE HEALTH</button>
-                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="apex">APEX RACE</button>
-                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="classic">CLASSIC</button>
-                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="neon">NEON DIGITAL</button>
-                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="minimal">MINIMAL</button>
-                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="turbo">TURBO RPM</button>
-                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="volt">VOLT EV</button>
-                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="survival">SURVIVAL ARC</button>
-                                <button class="menu-opt-btn active" data-setting="speedoStyle" data-value="cluster">SURVIVAL CLUSTER</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="apex">HYPER-APEX</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="classic">SUPERCAR BAY</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="neon">CYBER-PRISM</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="minimal">STEALTH VISOR</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="turbo">GYRO-TURBINE</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="volt">ORBITAL RING</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="survival">JDM DRIFT</button>
+                                <button class="menu-opt-btn active" data-setting="speedoStyle" data-value="cluster">CHRONO BLADE</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="gtneedle">GT DUAL</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="chronograph">CHRONO DIAL</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="muscle">MUSCLE V8</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="hyperneedle">HYPER LASER</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="driftking">DRIFT KING</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="cyberneedle">CYBER NEEDLE</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="rally">RALLY PRO</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="aviation">COCKPIT HUD</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="retro80s">RETRO 80S</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="touge">TOUGE TACH</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="driftpro">DRIFT PRO</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="driftbar">SLIDE BALANCE</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="neonpunk">NEON PUNK 3D</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="cyberbounce">CYBER BOUNCE</button>
+                                <button class="menu-opt-btn" data-setting="speedoStyle" data-value="hyperpulse">HYPER PULSE</button>
                             </div>
                         </div>
                     </div>
@@ -269,7 +747,7 @@
                             <div class="menu-toggle-row"><span>SHOW AMMO TYPE</span><label class="menu-toggle"><input type="checkbox" id="menu-weapon-ammo-type" checked><span class="menu-toggle-slider"></span></label></div>
                             <div class="menu-toggle-row"><span>SHOW SPARE BULLETS</span><label class="menu-toggle"><input type="checkbox" id="menu-weapon-reserve" checked><span class="menu-toggle-slider"></span></label></div>
                             <div class="menu-toggle-row"><span>USE OX INVENTORY WEAPON IMAGE</span><label class="menu-toggle"><input type="checkbox" id="menu-weapon-inventory-art" checked><span class="menu-toggle-slider"></span></label></div>
-                            <p class="zmenu-note">Magazine rounds are the large number; spare rounds are the smaller one. Weapon artwork uses ox_inventory when available, with local gun silhouettes as a fallback.</p>
+                            <p class="zmenu-note">Large digits show rounds loaded in the gun. Smaller digits show reloadable reserve ammo (including matching ox_inventory ammo items). Melee weapons show their names without misleading ammo counts. Amber = reload needed; blue = reloading; red pulse = out of ammo. Light and particle effects stay inside the HUD.</p>
                         </div>
                         <div class="menu-section zmenu-card z11-card span-12">
                             <div class="menu-section-title">DESIGN</div>
@@ -320,19 +798,26 @@
                     </div>
 
                     <div class="menu-tab z11-tab" data-tab-body="colors">
-                        <div class="menu-section zmenu-card z11-card span-6">
-                            <div class="menu-section-title">THEME COLORS</div>
-                            <p class="zmenu-note">Server-defined ring colors come from <b>Config.Status.Colors</b>. Dynamic Color can override them based on status value.</p>
-                            <div class="z11-swatches"><span class="cyan"></span><span class="pink"></span><span class="amber"></span><span class="red"></span></div>
+                        <div class="menu-section zmenu-card z11-card span-12 rs-theme-settings">
+                            <div class="menu-section-title">MENU THEME COLORS</div>
+                            <p class="zmenu-note">Customize the menu frame, glowing edges, tabs, buttons and hover effects. Changes preview immediately; Save Changes keeps them for this player.</p>
+                            <div class="rs-theme-preset-grid" role="group" aria-label="Menu color palettes">
+                                <button type="button" class="rs-theme-preset" data-hud-palette="neon" aria-pressed="true"><span class="rs-theme-preset-colors" style="--swatch-a:#28ddff;--swatch-b:#ff49bd"></span><span>NEON</span></button>
+                                <button type="button" class="rs-theme-preset" data-hud-palette="ice" aria-pressed="false"><span class="rs-theme-preset-colors" style="--swatch-a:#61eaff;--swatch-b:#4594ff"></span><span>ICE</span></button>
+                                <button type="button" class="rs-theme-preset" data-hud-palette="royal" aria-pressed="false"><span class="rs-theme-preset-colors" style="--swatch-a:#9c78ff;--swatch-b:#ff79c6"></span><span>ROYAL</span></button>
+                                <button type="button" class="rs-theme-preset" data-hud-palette="ember" aria-pressed="false"><span class="rs-theme-preset-colors" style="--swatch-a:#ffbd53;--swatch-b:#ff5e75"></span><span>EMBER</span></button>
+                                <button type="button" class="rs-theme-preset" data-hud-palette="emerald" aria-pressed="false"><span class="rs-theme-preset-colors" style="--swatch-a:#36eab6;--swatch-b:#82c7ff"></span><span>EMERALD</span></button>
+                                <button type="button" class="rs-theme-preset" data-hud-palette="crimson" aria-pressed="false"><span class="rs-theme-preset-colors" style="--swatch-a:#ff667f;--swatch-b:#ffac57"></span><span>CRIMSON</span></button>
+                            </div>
+                            <div class="rs-theme-custom-controls">
+                                <label class="rs-theme-picker"><span>PRIMARY COLOR</span><input id="menu-theme-primary" type="color" value="#28ddff" aria-label="Menu primary color"><output id="menu-theme-primary-value">#28DDFF</output></label>
+                                <label class="rs-theme-picker"><span>SECONDARY COLOR</span><input id="menu-theme-secondary" type="color" value="#ff49bd" aria-label="Menu secondary color"><output id="menu-theme-secondary-value">#FF49BD</output></label>
+                            </div>
+                            <div class="rs-theme-footer"><span id="menu-theme-label">NEON THEME</span><button type="button" id="menu-theme-reset" class="rs-theme-reset">RESET THEME</button></div>
                         </div>
-                        <div class="menu-section zmenu-card z11-card span-6">
-                            <div class="menu-section-title">VISUAL EFFECTS</div>
-                            <div class="z11-system-badge"><span>LIVE STATUS GRADIENT</span><strong>AVAILABLE</strong></div>
-                            <p class="zmenu-note z11-mirror-note">Use the Survival HUD tab to turn Dynamic Color on or off.</p>
-                        </div>
-                        <div class="menu-section zmenu-card z11-card span-12">
-                            <div class="menu-section-title">NEON THEME</div>
-                            <p class="zmenu-note">The menu frame uses cyan and magenta as the fixed interface identity while your in-game status rings remain configurable by the server owner.</p>
+                        <div class="menu-section zmenu-card z11-card span-12 rs-theme-hud-note">
+                            <div class="menu-section-title">HUD STATUS COLORS</div>
+                            <p class="zmenu-note">These theme settings affect the editor menu only. Health, armor and other gameplay HUD ring colors still use server configuration and the Survival HUD Dynamic Color setting.</p>
                         </div>
                     </div>
 
@@ -403,9 +888,27 @@
                         </div>
                         <div class="menu-section zmenu-card z11-card span-6">
                             <div class="menu-section-title">SYSTEM INFO</div>
-                            <div class="menu-info-row"><span>VERSION</span><span id="menu-info-version">1.4.5</span></div>
+                            <div class="menu-info-row"><span>PROFILE</span><span id="menu-info-version">DEFAULT</span></div>
                             <div class="menu-info-row"><span>RESOURCE</span><span id="menu-info-resource">rs-lilhudlife</span></div>
                             <div class="menu-info-row"><span>AUTHOR</span><span>REALITY SUCKS RP</span></div>
+                        </div>
+                        <div class="menu-section zmenu-card z11-card span-12 rs-hud-fx-settings">
+                            <div class="menu-section-title">INTERACTIVE MENU EFFECTS</div>
+                            <p class="zmenu-note">Responsive hover motion, glowing hover targets, menu-only particles, and click sparks. No particles or overlays appear over gameplay when the menu is closed.</p>
+                            <div class="rs-hud-fx-label">PARTICLE INTENSITY</div>
+                            <div class="menu-option-grid rs-hud-fx-choices" role="group" aria-label="Particle intensity">
+                                <button class="menu-opt-btn" type="button" data-setting="menuEffects" data-value="off">OFF</button>
+                                <button class="menu-opt-btn" type="button" data-setting="menuEffects" data-value="low">LOW</button>
+                                <button class="menu-opt-btn active" type="button" data-setting="menuEffects" data-value="standard">STANDARD</button>
+                                <button class="menu-opt-btn" type="button" data-setting="menuEffects" data-value="high">HIGH</button>
+                            </div>
+                            <div class="rs-hud-fx-label">CARD HOVER MOTION</div>
+                            <div class="menu-option-grid rs-hud-fx-choices" role="group" aria-label="Card hover motion">
+                                <button class="menu-opt-btn active" type="button" data-setting="menuDepth" data-value="off">OFF</button>
+                                <button class="menu-opt-btn" type="button" data-setting="menuDepth" data-value="medium">SOFT</button>
+                                <button class="menu-opt-btn" type="button" data-setting="menuDepth" data-value="high">STRONG</button>
+                            </div>
+                            <p class="zmenu-note">Gameplay controls and camera are locked while this editor has focus. Press ESC or Close to return to the game. System Reduced Motion disables animated effects.</p>
                         </div>
                         <div class="menu-section zmenu-card z11-card span-12">
                             <div class="menu-section-title">RESET CONTROL</div>
@@ -417,8 +920,9 @@
 
                 <aside class="zmenu-right z11-right">
                     <div class="menu-section zmenu-card z11-card z11-preview-card z11-live-card">
-                        <div class="zpreview-head"><div class="menu-section-title">LIVE HUD WORKSPACE</div><div class="zpreview-tag">LIVE IN GAME</div></div>
+                        <div class="zpreview-head rs-preview-head" id="rs-preview-drag"><div class="menu-section-title">LIVE HUD WORKSPACE</div><div class="rs-window-tools"><span class="rs-window-live" title="Live settings preview">LIVE</span><button id="rs-preview-collapse" type="button" class="rs-window-tool" title="Minimize preview" aria-label="Minimize preview" aria-expanded="true">−</button><button id="rs-preview-float" type="button" class="rs-window-tool" title="Float or dock preview" aria-label="Float preview" aria-pressed="false">⤢</button></div></div>
                         <div class="z11-live-stage">
+                                <div class="rs-workspace-ticker" aria-hidden="true"><div class="rs-workspace-radar"><i></i><i></i></div><span>PREVIEW MATRIX / LIVE SETTINGS</span></div>
                             <div class="z11-live-mark"><span>◎</span><div><strong>THE GAME HUD IS THE PREVIEW</strong><small>Look behind this menu to see every change immediately.</small></div></div>
                             <div class="z11-live-readouts">
                                 <div><span>SPEEDOMETER</span><strong id="zlive-speedo-style">SURVIVAL CLUSTER</strong></div>
@@ -464,8 +968,20 @@
             </main>
         </div>
 
+        <div class="rs-orbit-modal" id="menu-orbit" role="dialog" aria-label="Orbital navigation" aria-modal="true" aria-hidden="true" hidden>
+            <button class="rs-orbit-scrim" type="button" aria-label="Close orbital navigation"></button>
+            <div class="rs-orbit-console">
+                <div class="rs-orbit-topline"><span>HUDLIFE / SYSTEM SELECTOR</span><button class="rs-orbit-dismiss" type="button" aria-label="Close orbital navigation">✕</button></div>
+                <div class="rs-orbit-wheel">
+                    <div class="rs-orbit-tracks" aria-hidden="true"></div>
+                    <div class="rs-orbit-items" id="rs-orbit-items"></div>
+                    <div class="rs-orbit-hub" aria-hidden="true"><span class="rs-orbit-hub-eye">◎</span><strong>ORBIT</strong><small>SELECT SYSTEM</small></div>
+                </div>
+                <div class="rs-orbit-footnote">ARROWS TO SELECT · ENTER TO OPEN · ESC TO EXIT</div>
+            </div>
+        </div>
+
         <footer class="menu-footer zmenu-footer z11-footer">
-            <div class="zfooter-copy">ULTIMATE SURVIVAL. MAXIMUM CONTROL.</div>
             <div class="zfooter-actions"><button class="menu-btn menu-btn-secondary" id="menu-reset-footer">↺ RESET TO DEFAULT</button><button class="menu-btn menu-btn-primary" id="menu-save">✓ SAVE CHANGES</button></div>
         </footer>
     </div>
@@ -478,10 +994,14 @@
 <script src="js/vehicle-art-index.js"></script>
 <script src="js/boot.js"></script>
 <script src="js/speedo.js"></script>
+<script src="js/speedo-3d-v1417.js?v=1.4.17"></script>
 <script src="js/status.js"></script>
 <script src="js/money.js"></script>
 <script src="js/weapon.js"></script>
 <script src="js/menu.js"></script>
+<script src="js/menu-interactive.js?v=1.4.12"></script>
+<script src="js/menu-orbit-v1414.js?v=1.4.14"></script>
+<script src="js/menu-polish-v1417.js?v=1.4.17"></script>
 <script src="js/app.js"></script>
 <script>
 // allow the footer reset button to forward to the main reset handler already used by menu.js

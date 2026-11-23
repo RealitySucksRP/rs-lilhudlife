@@ -4,13 +4,13 @@
 -- ============================================================
 
 local resourceName = GetCurrentResourceName()
-local version = '1.4.4'
+local version = '1.4.8'
 local moneyModeRequests = {}
 local MONEY_MODE_COOLDOWN_MS = 1500
 
 AddEventHandler('onResourceStart', function(resource)
     if resource == resourceName then
-        print('^5[RS-HUDLIFE]^7 V4 loaded (' .. version .. ')')
+        print('^5[RS-HUDLIFE]^7 loaded (' .. version .. ')')
         print('^5[RS-HUDLIFE]^7 Reality Sucks RP')
     end
 end)

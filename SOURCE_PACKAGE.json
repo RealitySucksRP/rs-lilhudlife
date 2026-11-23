@@ -1,7 +1,7 @@
 {
   "resource": "rs-lilhudlife",
-  "manifestVersion": "1.4.6",
+  "manifestVersion": "1.4.18",
   "asset": "rs-lilhudlife.zip",
-  "sha256": "9122791c980812a10c4b0917a0c65887ad6e1a925f40378360672a5fe7e1b5a2",
-  "files": 964
+  "sha256": "36af6e1a4e0d886fcdfea7fcb5831ec3994fbe78ce7db9c9b7855858c0c6d0d4",
+  "files": 978
 }

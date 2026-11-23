@@ -1,0 +1,11 @@
+RS HUDLife — Installation
+=========================
+
+1. Extract the rs-lilhudlife folder into your FiveM resources directory.
+2. Add "ensure rs-lilhudlife" to your server.cfg (without quotation marks).
+3. Set Config.Framework = 'auto' or your chosen framework in config.lua.
+4. Restart the resource and open the HUD settings with F9.
+5. Validate NUI focus, vehicle transitions, and any optional framework providers on your server.
+
+This is an unencrypted full-source release. See README.txt and LICENSE.
+Vehicle art is included; ensure you have redistribution rights before publishing.

@@ -371,3 +371,102 @@ html, body {
     height: 100% !important;
     box-sizing: border-box !important;
 }
+
+/* v1.4.10 profile card + footer cleanup */
+#menu-overlay .z11-profile-card {
+    min-height: 72px !important;
+    padding: 9px 10px !important;
+    grid-template-columns: 44px minmax(0, 1fr) !important;
+    gap: 9px !important;
+}
+#menu-overlay .z11-mode-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+#menu-overlay .z11-mode-icon--rp {
+    width: 40px !important;
+    height: 40px !important;
+    padding: 0 !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(44, 220, 255, .24) !important;
+    background: radial-gradient(circle at 50% 30%, rgba(39, 30, 89, .88), rgba(10, 15, 33, .98)) !important;
+    box-shadow: inset 0 0 18px rgba(44, 220, 255, .10), 0 0 16px rgba(255, 77, 191, .08) !important;
+}
+#menu-overlay .z11-mode-icon-svg {
+    width: 30px;
+    height: 30px;
+    overflow: visible;
+    filter: drop-shadow(0 0 8px rgba(44, 220, 255, .18));
+}
+#menu-overlay .z11-mode-icon-svg .rp-ring-outer,
+#menu-overlay .z11-mode-icon-svg .rp-ring-inner,
+#menu-overlay .z11-mode-icon-svg .rp-ticks {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+#menu-overlay .z11-mode-icon-svg .rp-ring-outer {
+    stroke: rgba(73, 234, 255, .95);
+    stroke-width: 1.9;
+}
+#menu-overlay .z11-mode-icon-svg .rp-ring-inner {
+    stroke: rgba(255, 89, 198, .70);
+    stroke-width: 1.25;
+}
+#menu-overlay .z11-mode-icon-svg .rp-head,
+#menu-overlay .z11-mode-icon-svg .rp-body {
+    fill: none;
+    stroke: rgba(230, 247, 255, .96);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+#menu-overlay .z11-mode-icon-svg .rp-ticks {
+    stroke: rgba(255, 89, 198, .70);
+    stroke-width: 1.45;
+}
+#menu-overlay .z11-profile-card .zmode-label {
+    color: rgba(255, 124, 219, .92) !important;
+    font-size: 8px !important;
+    letter-spacing: .9px !important;
+}
+#menu-overlay .z11-profile-card .zmode-state {
+    margin-top: 2px;
+    color: rgba(69, 255, 182, .98) !important;
+    font-size: 13px !important;
+    letter-spacing: .85px !important;
+}
+#menu-overlay .z11-profile-card .zmode-sub {
+    margin-top: 3px !important;
+    color: rgba(195, 225, 240, .72) !important;
+    font-size: 6.6px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#menu-overlay .z11-footer {
+    align-items: flex-end !important;
+    padding: 7px 18px 10px !important;
+}
+#menu-overlay .zfooter-copy {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: 1.4px !important;
+}
+#menu-overlay .zfooter-actions {
+    flex: 0 0 auto;
+}
+
+/* v1.4.12 - suppress legacy generated footer caption in the base CSS. */
+#menu-overlay .menu-footer.zmenu-footer::before,
+#menu-overlay .menu-footer.zmenu-footer::after,
+#menu-overlay .menu-footer.zmenu-footer .zfooter-copy {
+    content: none !important;
+    display: none !important;
+    visibility: hidden !important;
+}

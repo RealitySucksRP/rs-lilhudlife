@@ -5103,7 +5103,8 @@ body.preview-mode {
         linear-gradient(270deg, rgba(255,60,172,.07), transparent 45%) !important;
 }
 .menu-footer::before {
-    content:'CHANGES APPLY LIVE  /  KVP PROFILE SYNC';
+    content: none;
+    display: none; /* v1.4.12 - generated footer copy retired */
     position:absolute;
     left:26px;
     top:50%;

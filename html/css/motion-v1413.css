@@ -1,0 +1,232 @@
+/* RS HUDLife v1.4.13 - original kinetic gauges, inspired by credited UI research.
+   Strictly scoped to eight variants; HALO and VEHICLE HEALTH untouched.
+   Static DOM + GPU-friendly transforms/opacity; no overlays, downloads or new deps. */
+.rs-speedo--apex,.rs-speedo--classic,.rs-speedo--neon,.rs-speedo--minimal,
+.rs-speedo--turbo,.rs-speedo--volt,.rs-speedo--survival,.rs-speedo--cluster {
+    --rs-motion-speed:0%; --rs-motion-rpm:0%; --rs-motion-fuel:100%;
+}
+.rs-motion {position:absolute;inset:0;pointer-events:none;z-index:2;overflow:hidden;color:var(--rs-primary);}
+.rs-motion > div {position:absolute;pointer-events:none;}
+.rs-motion-geometry{inset:0;opacity:.8;}
+.rs-motion-geometry i {position:absolute;display:block;pointer-events:none;border:1px solid rgba(var(--rs-primary-rgb),.52);}
+.rs-motion-spectrum{display:flex;align-items:end;gap:3px;height:22px;opacity:.82;}
+.rs-motion-spectrum i{flex:1;min-width:2px;height:12px;border-radius:1px;
+    background:rgba(var(--rs-primary-rgb),.20);box-shadow:inset 0 0 0 1px rgba(var(--rs-primary-rgb),.16);}
+.rs-motion-spectrum i:nth-child(3n + 2){height:20px;}
+.rs-motion-spectrum i:nth-child(5n + 1){height:10px;}
+.rs-motion-meter {height:7px;border:1px solid rgba(var(--rs-primary-rgb),.54);background:rgba(var(--rs-primary-rgb),.08);overflow:hidden;}
+.rs-motion-meter b{display:block;width:var(--rs-motion-speed);height:100%;transition:width .18s linear;
+    background:linear-gradient(90deg,var(--rs-secondary),var(--rs-primary),#f6faff);box-shadow:0 0 8px var(--rs-primary);}
+.rs-motion-signal{display:flex;align-items:center;justify-content:center;gap:4px;height:20px;}
+.rs-motion-signal i{display:block;width:6px;height:calc(5px + var(--rs-signal) * 2px);background:rgba(var(--rs-primary-rgb),.56);transform-origin:center;
+    animation:rs-motion-wave 1.9s ease-in-out infinite;animation-delay:calc(var(--rs-signal) * -.14s);}
+.rs-motion-dial{width:100px;height:100px;border:1px solid rgba(var(--rs-primary-rgb),.32);border-radius:50%;
+    background:conic-gradient(from 245deg,var(--rs-primary) var(--rs-motion-speed),rgba(var(--rs-primary-rgb),.06) 0);
+    -webkit-mask-image:radial-gradient(transparent 57%,#000 59%,#000 69%,transparent 71%);mask-image:radial-gradient(transparent 57%,#000 59%,#000 69%,transparent 71%);
+    transition:background .2s linear;}
+.rs-motion-caption{display:flex;flex-direction:column;gap:4px;font-family:'Share Tech Mono',monospace;line-height:1;letter-spacing:1.6px;}
+.rs-motion-caption strong{font-size:9px;color:var(--rs-primary);font-weight:800;}
+.rs-motion-caption span{font-size:6px;color:rgba(231,249,255,.50);}
+.rs-motion-beacon{display:inline-flex;align-items:center;justify-content:center;padding:3px 6px;
+    border-left:2px solid var(--rs-secondary);font:800 7px/1 'Share Tech Mono',monospace;letter-spacing:1.3px;
+    color:var(--rs-primary);background:rgba(var(--rs-primary-rgb),.12);}
+.rs-speedo:is(.rs-speedo--apex,.rs-speedo--classic,.rs-speedo--neon,.rs-speedo--minimal,.rs-speedo--turbo,.rs-speedo--volt,.rs-speedo--survival,.rs-speedo--cluster) .rs-speedo-readout,
+.rs-speedo:is(.rs-speedo--apex,.rs-speedo--classic,.rs-speedo--neon,.rs-speedo--minimal,.rs-speedo--turbo,.rs-speedo--volt,.rs-speedo--survival,.rs-speedo--cluster) .rs-speedo-gear,
+.rs-speedo:is(.rs-speedo--apex,.rs-speedo--classic,.rs-speedo--neon,.rs-speedo--minimal,.rs-speedo--turbo,.rs-speedo--volt,.rs-speedo--survival,.rs-speedo--cluster) .rs-speedo-rpm,
+.rs-speedo:is(.rs-speedo--apex,.rs-speedo--classic,.rs-speedo--neon,.rs-speedo--minimal,.rs-speedo--turbo,.rs-speedo--volt,.rs-speedo--survival,.rs-speedo--cluster) .rs-speedo-topline,
+.rs-speedo:is(.rs-speedo--apex,.rs-speedo--classic,.rs-speedo--neon,.rs-speedo--minimal,.rs-speedo--turbo,.rs-speedo--volt,.rs-speedo--survival,.rs-speedo--cluster) .rs-speedo-warning,
+.rs-speedo:is(.rs-speedo--apex,.rs-speedo--classic,.rs-speedo--neon,.rs-speedo--minimal,.rs-speedo--turbo,.rs-speedo--volt,.rs-speedo--survival,.rs-speedo--cluster) .rs-drive-indicators,
+.rs-speedo:is(.rs-speedo--apex,.rs-speedo--classic,.rs-speedo--neon,.rs-speedo--minimal,.rs-speedo--turbo,.rs-speedo--volt,.rs-speedo--survival,.rs-speedo--cluster) .rs-speedo-telemetry,
+.rs-speedo:is(.rs-speedo--apex,.rs-speedo--classic,.rs-speedo--neon,.rs-speedo--minimal,.rs-speedo--turbo,.rs-speedo--volt,.rs-speedo--survival,.rs-speedo--cluster) .rs-cluster-iconbar{z-index:4;}
+/* Vector APEX: cut-paper competition strip with segmented velocity ladder. */
+.rs-speedo--apex{width:338px;height:176px;}
+.rs-speedo--apex .rs-speedo-shell {clip-path:polygon(0 9%,30% 9%,35% 0,89% 0,100% 23%,100% 85%,94% 100%,0 100%,3% 64%);
+    background:linear-gradient(140deg,rgba(33,72,29,.28),rgba(3,12,9,.30) 55%,rgba(151,113,17,.15));border-color:rgba(174,255,47,.65);backdrop-filter:none;}
+.rs-speedo--apex .rs-speedo-svg{display:none;}
+.rs-speedo--apex .rs-speedo-topline{top:14px;left:20px;}
+.rs-speedo--apex .rs-speedo-readout{bottom:45px;left:23px;}
+.rs-speedo--apex .rs-speedo-speed{font-size:56px;}
+.rs-speedo--apex .rs-speedo-gear{left:59%;top:55px;}
+.rs-speedo--apex .rs-speedo-gear strong{border-radius:3px;transform:skewX(-10deg);background:rgba(var(--rs-primary-rgb),.14);}
+.rs-speedo--apex .rs-speedo-rpm{right:22px;top:60px;}
+.rs-speedo--apex .rs-speedo-telemetry{bottom:15px;}
+.rs-speedo--apex .rs-drive-indicators{right:20px;bottom:40px;}
+.rs-speedo--apex .rs-motion-caption{top:13px;right:13px;text-align:right;}
+.rs-speedo--apex .rs-motion-spectrum{left:20px;right:16px;top:37px;transform:skewX(-20deg);}
+.rs-speedo--apex .rs-motion-meter{left:19px;right:19px;top:66px;transform:skewX(-14deg);}
+.rs-speedo--apex .rs-motion-beacon{top:97px;right:19px;}
+.rs-speedo--apex .rs-motion-geometry i:nth-child(1){width:32px;height:22px;top:2px;left:125px;transform:skewX(-35deg);}
+.rs-speedo--apex .rs-motion-geometry i:nth-child(2){width:90px;height:1px;top:104px;right:21px;border-style:dashed;}
+.rs-speedo--apex .rs-motion-dial,.rs-speedo--apex .rs-motion-signal{display:none;}
+/* CLASSIC: art-deco chrono punch-card, not a round needle dial. */
+.rs-speedo--classic{width:296px;height:206px;}
+.rs-speedo--classic .rs-speedo-shell{inset:2px;border-radius:8px 26px 8px 26px;border:2px double rgba(225,183,77,.75);
+    background:linear-gradient(140deg,rgba(99,77,31,.28),rgba(12,17,15,.34) 45%,rgba(154,104,16,.17));backdrop-filter:none;}
+.rs-speedo--classic .rs-speedo-svg,.rs-speedo--classic .rs-speedo-numbers,.rs-speedo--classic .rs-speedo-needle,.rs-speedo--classic .rs-speedo-hub{display:none;}
+.rs-speedo--classic .rs-speedo-ambient{display:none;}
+.rs-speedo--classic .rs-speedo-topline{top:17px;}
+.rs-speedo--classic .rs-speedo-gear{left:22px;top:66px;}
+.rs-speedo--classic .rs-speedo-rpm{right:22px;top:66px;}
+.rs-speedo--classic .rs-speedo-readout{bottom:54px;background:transparent;border:0;}
+.rs-speedo--classic .rs-speedo-speed{font-size:48px;color:#f9e9c5;text-shadow:0 0 9px rgba(211,165,76,.44);}
+.rs-speedo--classic .rs-speedo-telemetry{bottom:17px;left:26px;right:26px;}
+.rs-speedo--classic .rs-drive-indicators{right:25px;bottom:49px;}
+.rs-speedo--classic .rs-motion-caption{left:18px;top:13px;}
+.rs-speedo--classic .rs-motion-spectrum{left:30px;right:30px;top:54px;align-items:start;}
+.rs-speedo--classic .rs-motion-spectrum i{background:repeating-linear-gradient(180deg,rgba(244,234,209,.85) 0 2px,transparent 2px 4px);transform:skewY(10deg);}
+.rs-speedo--classic .rs-motion-meter{left:28px;right:28px;bottom:39px;height:4px;}
+.rs-speedo--classic .rs-motion-beacon{right:15px;top:17px;}
+.rs-speedo--classic .rs-motion-geometry i:nth-child(1){inset:10px;border:1px dotted rgba(213,169,77,.45);border-radius:4px 23px 4px 23px;}
+.rs-speedo--classic .rs-motion-geometry i:nth-child(2){width:95px;height:48px;left:50%;top:48px;transform:translateX(-50%);border-style:dashed;}
+.rs-speedo--classic .rs-motion-dial,.rs-speedo--classic .rs-motion-signal{display:none;}
+/* NEON: asymmetric prism / split-spectrum telemetry. */
+.rs-speedo--neon{width:316px;height:178px;}
+.rs-speedo--neon .rs-speedo-shell{clip-path:polygon(9% 0,70% 0,80% 10%,98% 10%,100% 69%,91% 100%,20% 100%,11% 90%,0 90%,0 18%);
+    background:linear-gradient(135deg,rgba(0,158,219,.18),rgba(58,0,97,.24),rgba(204,12,145,.18));backdrop-filter:none;}
+.rs-speedo--neon .rs-speedo-svg{display:none;}
+.rs-speedo--neon .rs-speedo-topline{top:13px;left:53%;}
+.rs-speedo--neon .rs-speedo-readout{bottom:44px;left:49%;border:0;background:transparent;}
+.rs-speedo--neon .rs-speedo-speed{font-size:58px;letter-spacing:3px;}
+.rs-speedo--neon .rs-speedo-gear{left:23px;top:65px;}
+.rs-speedo--neon .rs-speedo-rpm{right:24px;top:65px;}
+.rs-speedo--neon .rs-speedo-telemetry{bottom:17px;left:19px;right:19px;}
+.rs-speedo--neon .rs-drive-indicators{bottom:45px;right:20px;}
+.rs-speedo--neon .rs-motion-caption{top:14px;left:18px;}
+.rs-speedo--neon .rs-motion-spectrum{left:12px;top:43px;width:75px;flex-direction:column;align-items:center;gap:2px;height:87px;}
+.rs-speedo--neon .rs-motion-spectrum i{width:12px;height:2px;flex:none;background:var(--rs-secondary);}
+.rs-speedo--neon .rs-motion-meter{left:21px;right:20px;bottom:37px;height:5px;}
+.rs-speedo--neon .rs-motion-beacon{right:18px;top:13px;}
+.rs-speedo--neon .rs-motion-geometry i:nth-child(1){width:126px;height:110px;top:37px;left:93px;transform:skewX(-18deg);border-color:rgba(255,70,215,.27);}
+.rs-speedo--neon .rs-motion-geometry i:nth-child(2){width:70px;height:85px;top:31px;left:118px;transform:skewX(-18deg);border-color:rgba(0,240,255,.22);}
+.rs-speedo--neon .rs-motion-dial,.rs-speedo--neon .rs-motion-signal{display:none;}
+/* MINIMAL: punched electronic speed ticket (not a miniature dial). */
+.rs-speedo--minimal{width:292px;height:104px;}
+.rs-speedo--minimal .rs-speedo-shell{inset:0;clip-path:polygon(0 0,100% 0,100% 77%,94% 77%,94% 100%,7% 100%,7% 77%,0 77%);
+    border-radius:0;border-top:2px solid #f8fbff;border-bottom:1px dashed rgba(255,255,255,.65);
+    background:linear-gradient(90deg,rgba(242,250,255,.16),rgba(33,39,49,.22));backdrop-filter:none;}
+.rs-speedo--minimal .rs-speedo-topline{top:10px;left:16px;}
+.rs-speedo--minimal .rs-speedo-readout{left:15px;bottom:33px;}
+.rs-speedo--minimal .rs-speedo-speed{font-size:47px;}
+.rs-speedo--minimal .rs-speedo-gear{right:19px;top:18px;}
+.rs-speedo--minimal .rs-speedo-telemetry{left:125px;right:81px;bottom:34px;}
+.rs-speedo--minimal .rs-drive-indicators{right:13px;bottom:15px;}
+.rs-speedo--minimal .rs-motion-caption{top:10px;right:68px;text-align:right;}
+.rs-speedo--minimal .rs-motion-meter{left:24px;right:18px;bottom:11px;height:3px;border:0;background:rgba(255,255,255,.14);}
+.rs-speedo--minimal .rs-motion-beacon{left:129px;top:43px;}
+.rs-speedo--minimal .rs-motion-geometry i:nth-child(1){top:0;left:119px;width:1px;height:70px;border-style:dashed;}
+.rs-speedo--minimal .rs-motion-spectrum,.rs-speedo--minimal .rs-motion-dial,.rs-speedo--minimal .rs-motion-signal{display:none;}
+/* TURBO: rotating centrifuge with central red digital velocity. */
+.rs-speedo--turbo .rs-speedo-shell{background:radial-gradient(circle,rgba(31,122,194,.20),rgba(0,24,47,.22) 59%,transparent 75%);border-color:rgba(42,164,255,.52);}
+.rs-speedo--turbo .rs-speedo-svg{opacity:.45;}
+.rs-speedo--turbo .rs-motion{overflow:visible;}
+.rs-speedo--turbo .rs-motion-caption{left:50%;top:29px;transform:translateX(-50%);text-align:center;}
+.rs-speedo--turbo .rs-motion-dial{display:block;left:45px;top:45px;width:210px;height:210px;opacity:.8;
+    -webkit-mask-image:radial-gradient(transparent 62%,#000 63%,#000 68%,transparent 70%);mask-image:radial-gradient(transparent 62%,#000 63%,#000 68%,transparent 70%);}
+.rs-speedo--turbo .rs-motion-geometry i:nth-child(1){inset:34px;border-radius:50%;border-style:dashed;animation:rs-motion-spin 18s linear infinite;}
+.rs-speedo--turbo .rs-motion-geometry i:nth-child(2){inset:64px;border-radius:50%;border-style:dotted;animation:rs-motion-spin 12s linear infinite reverse;}
+.rs-speedo--turbo .rs-motion-geometry i:nth-child(3){width:115px;height:115px;left:93px;top:93px;border-color:rgba(var(--rs-primary-rgb),.1);transform:rotate(45deg);}
+.rs-speedo--turbo .rs-motion-spectrum{left:53px;right:53px;bottom:45px;height:10px;}
+.rs-speedo--turbo .rs-motion-spectrum i{height:7px;transform:skewX(-20deg);}
+.rs-speedo--turbo .rs-motion-meter{left:76px;right:76px;bottom:29px;height:4px;}
+.rs-speedo--turbo .rs-motion-beacon{left:50%;bottom:16px;transform:translateX(-50%);}
+.rs-speedo--turbo .rs-motion-signal{display:none;}
+.rs-speedo--turbo .rs-speedo-readout{z-index:5;}
+/* VOLT: energy cell / waveform deck. No inaccurate SOC assumptions added. */
+.rs-speedo--volt{width:344px;height:211px;}
+.rs-speedo--volt .rs-speedo-shell{clip-path:polygon(0 15%,15% 0,85% 0,100% 15%,100% 85%,84% 100%,16% 100%,0 85%);
+    border-color:rgba(40,215,255,.49);background:linear-gradient(125deg,rgba(8,51,70,.28),rgba(1,21,28,.32),rgba(57,29,125,.19));backdrop-filter:none;}
+.rs-speedo--volt .rs-speedo-svg{opacity:.25;}
+.rs-speedo--volt .rs-motion-caption{top:19px;left:22px;}
+.rs-speedo--volt .rs-motion-spectrum{left:43px;right:43px;bottom:33px;height:21px;align-items:center;}
+.rs-speedo--volt .rs-motion-spectrum i{height:calc(9px + var(--rs-segment) * .35px);border-radius:7px;background:linear-gradient(0deg,rgba(47,208,255,.23),rgba(126,232,255,.74));}
+.rs-speedo--volt .rs-motion-meter{left:40px;right:40px;bottom:22px;height:3px;}
+.rs-speedo--volt .rs-motion-beacon{right:24px;top:19px;}
+.rs-speedo--volt .rs-motion-signal{left:38px;top:81px;transform:rotate(90deg);}
+.rs-speedo--volt .rs-motion-geometry i:nth-child(1){inset:12px 31px;border:1px dashed rgba(47,208,255,.25);clip-path:polygon(12% 0,88% 0,100% 50%,88% 100%,12% 100%,0 50%);}
+.rs-speedo--volt .rs-motion-dial{display:none;}
+/* SURVIVAL: angular motion scanner / danger vector over native status. */
+.rs-speedo--survival .rs-speedo-shell{clip-path:polygon(0 30%,9% 0,91% 0,100% 30%,98% 83%,87% 100%,13% 100%,2% 83%);
+    background:radial-gradient(ellipse at center,rgba(18,87,128,.33),rgba(6,22,34,.34) 67%,rgba(4,19,27,.25));backdrop-filter:none;}
+.rs-speedo--survival .rs-motion-caption{left:18px;top:12px;}
+.rs-speedo--survival .rs-motion-beacon{right:17px;top:12px;}
+.rs-speedo--survival .rs-motion-spectrum{left:28px;right:28px;bottom:25px;height:15px;transform:skewX(-10deg);}
+.rs-speedo--survival .rs-motion-meter{left:42px;right:42px;bottom:15px;height:3px;}
+.rs-speedo--survival .rs-motion-geometry i:nth-child(1){left:10%;top:12px;width:80%;height:140px;clip-path:polygon(0 0,100% 0,83% 100%,17% 100%);border:1px dashed rgba(43,207,255,.18);}
+.rs-speedo--survival .rs-motion-signal{right:27px;top:47px;}
+.rs-speedo--survival .rs-motion-dial{display:none;}
+/* CLUSTER: transparent cockpit with a vector readout, preserved survival iconbar. */
+.rs-speedo--cluster .rs-speedo-shell{background:radial-gradient(ellipse at center,rgba(16,89,134,.37),rgba(4,24,43,.30) 61%,rgba(4,20,35,.28));backdrop-filter:none;}
+.rs-speedo--cluster .rs-motion-caption{left:24px;top:15px;}
+.rs-speedo--cluster .rs-motion-beacon{right:24px;top:15px;}
+.rs-speedo--cluster .rs-motion-spectrum{left:54px;right:54px;top:37px;height:9px;}
+.rs-speedo--cluster .rs-motion-spectrum i{height:8px;transform:skewX(-16deg);}
+.rs-speedo--cluster .rs-motion-meter{left:54px;right:54px;top:50px;height:3px;}
+.rs-speedo--cluster .rs-motion-signal{right:26px;top:98px;flex-direction:column;height:52px;gap:2px;}
+.rs-speedo--cluster .rs-motion-signal i{width:8px;height:3px;}
+.rs-speedo--cluster .rs-motion-geometry i:nth-child(1){top:7px;left:24px;right:24px;height:57px;border:1px solid rgba(42,180,255,.25);clip-path:polygon(10% 0,90% 0,100% 100%,0 100%);}
+.rs-speedo--cluster .rs-motion-geometry i:nth-child(2){left:55px;right:55px;bottom:72px;height:1px;border-style:dashed;}
+.rs-speedo--cluster .rs-motion-dial{display:none;}
+/* Time-based effects are quiet and may be disabled at the OS level. */
+@keyframes rs-motion-wave{0%,100%{opacity:.28;transform:scaleY(.55)}50%{opacity:.9;transform:scaleY(1.1)}}
+@keyframes rs-motion-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.rs-motion *{animation:none!important;transition:none!important}}
+
+/* Experimental scanner and flight deck deliberately abandon conventional dial geometry. */
+.rs-speedo--survival .rs-speedo-svg,
+.rs-speedo--survival .rs-speedo-rpmring,
+.rs-speedo--cluster .rs-speedo-svg,
+.rs-speedo--cluster .rs-speedo-rpmring {display:none;}
+.rs-speedo--survival .rs-speedo-readout {
+    left:125px;top:99px;min-width:138px;padding:4px 4px 6px;
+    border-left:2px solid rgba(52,211,255,.75);background:linear-gradient(90deg,rgba(45,165,221,.08),transparent);
+}
+.rs-speedo--survival .rs-speedo-speed{font-size:58px;}
+.rs-speedo--survival .rs-speedo-gearbadge {
+    left:auto;right:23px;top:89px;transform:none;border-radius:3px;min-width:48px;height:41px;
+    font-size:22px;clip-path:polygon(12% 0,100% 0,100% 75%,88% 100%,0 100%,0 20%);
+}
+.rs-speedo--survival .rs-motion-spectrum{left:95px;right:23px;top:144px;bottom:auto;height:20px;}
+.rs-speedo--survival .rs-motion-spectrum i {transform:skewX(-18deg);background:rgba(42,215,255,.35);}
+.rs-speedo--survival .rs-motion-geometry i:nth-child(1) {
+    width:180px;height:146px;left:92px;top:35px;border:1px dashed rgba(42,216,255,.32);
+    clip-path:none;transform:skewX(-18deg);border-right:4px solid rgba(42,216,255,.18);
+}
+.rs-speedo--survival .rs-motion-geometry i:nth-child(2) {
+    left:104px;top:45px;width:155px;height:122px;transform:skewX(-18deg);
+    background:repeating-linear-gradient(135deg,transparent 0 16px,rgba(44,221,255,.06) 17px 18px,transparent 19px 35px);
+    border-style:dotted;border-color:rgba(42,216,255,.19);
+}
+.rs-speedo--survival .rs-motion-signal{left:62px;right:auto;top:92px;transform:rotate(90deg);}
+.rs-speedo--survival .rs-speedo-warning {bottom:43px;}
+.rs-speedo--cluster .rs-speedo-shell {
+    inset:0;border-radius:0;clip-path:polygon(0 21%,9% 0,91% 0,100% 21%,100% 88%,93% 100%,7% 100%,0 88%);
+    border:2px solid rgba(30,189,255,.54);
+    background:linear-gradient(145deg,rgba(5,65,103,.31),rgba(2,20,32,.23) 45%,rgba(16,98,114,.24));
+}
+.rs-speedo--cluster .rs-speedo-readout {
+    left:38%;top:48%;min-width:164px;padding:7px 10px 9px;
+    transform:translate(-50%,-50%) skewX(-7deg);background:linear-gradient(135deg,rgba(17,146,194,.12),rgba(1,5,18,.13));
+    border-left:3px solid #42d2ff;border-bottom:1px solid rgba(64,193,255,.42);border-radius:0;text-align:left;
+}
+.rs-speedo--cluster .rs-speedo-speed{font-size:72px;}
+.rs-speedo--cluster .rs-speedo-unit{font-size:9px;}
+.rs-speedo--cluster .rs-speedo-gearbadge {
+    left:auto;right:34px;top:109px;width:65px;height:54px;transform:none;
+    border-radius:0;clip-path:polygon(0 0,100% 0,100% 74%,76% 100%,0 100%);font-size:31px;
+}
+.rs-speedo--cluster .rs-motion-spectrum{top:67px;left:60px;right:58px;height:17px;}
+.rs-speedo--cluster .rs-motion-meter{top:87px;left:60px;right:58px;height:5px;transform:skewX(-20deg);}
+.rs-speedo--cluster .rs-motion-geometry i:nth-child(1) {
+    top:101px;left:65px;right:51px;height:102px;clip-path:none;transform:skewX(-10deg);
+    border:1px dashed rgba(36,177,247,.25);
+    background:repeating-linear-gradient(90deg,transparent 0 27px,rgba(40,160,230,.08) 28px 29px);
+}
+.rs-speedo--cluster .rs-motion-signal{right:24px;top:157px;}
+.rs-speedo--cluster .rs-speedo-warning {bottom:66px;}
+/* Additional live illumination over the existing fixed bars. */
+.rs-motion-spectrum{position:absolute;}
+.rs-motion-spectrum::after{
+    content:'';position:absolute;left:0;top:0;height:100%;width:var(--rs-motion-speed);
+    pointer-events:none;background:linear-gradient(90deg,rgba(var(--rs-secondary-rgb),.22),rgba(var(--rs-primary-rgb),.68));
+    mix-blend-mode:screen;transition:width .18s linear;
+}

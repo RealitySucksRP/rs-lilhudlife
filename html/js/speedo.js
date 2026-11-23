@@ -255,6 +255,41 @@ const RSSpeedo = (function() {
         }).join('') + '</div>';
     }
 
+    // v1.4.13: locally drawn, non-interactive motion instruments for the eight
+    // experimental speedometers. HALO and VEHICLE HEALTH are deliberately excluded.
+    // These are CSS/SVG-inspired original components, not copied native libraries.
+    const MOTION_STYLES = new Set(['apex', 'classic', 'neon', 'minimal', 'turbo', 'volt', 'survival', 'cluster']);
+    const MOTION_TITLES = {
+        apex: ['VECTOR / 01', 'LATERAL VELOCITY'],
+        classic: ['CHRONO / 02', 'MECHANICAL TAPE'],
+        neon: ['PRISM / 03', 'SPECTRAL DRIVE'],
+        minimal: ['TICKET / 04', 'MOTION RECEIPT'],
+        turbo: ['ROTOR / 05', 'CENTRIFUGE'],
+        volt: ['CELL / 06', 'ENERGY FIELD'],
+        survival: ['SCANNER / 07', 'HAZARD ARRAY'],
+        cluster: ['DECK / 08', 'SURVIVAL FLIGHT']
+    };
+
+    function buildMotionLayer(style) {
+        if (!MOTION_STYLES.has(style)) return '';
+        const labels = MOTION_TITLES[style];
+        // All segments are static DOM, rather than spawning particles every tick.
+        // Pointer events are disabled in CSS so menus and camera remain unaffected.
+        return '<div class="rs-motion" aria-hidden="true">' +
+            '<div class="rs-motion-geometry"><i></i><i></i><i></i></div>' +
+            '<div class="rs-motion-spectrum">' + Array.from({length: 19}, function(_, i) {
+                return '<i style="--rs-segment:' + i + '"></i>';
+            }).join('') + '</div>' +
+            '<div class="rs-motion-meter"><b></b></div>' +
+            '<div class="rs-motion-signal">' + Array.from({length: 7}, function(_, i) {
+                return '<i style="--rs-signal:' + i + '"></i>';
+            }).join('') + '</div>' +
+            '<div class="rs-motion-dial"><i></i><b></b></div>' +
+            '<div class="rs-motion-caption"><strong>' + labels[0] + '</strong><span>' + labels[1] + '</span></div>' +
+            '<div class="rs-motion-beacon" data-motion-state="1">CRUISE</div>' +
+        '</div>';
+    }
+
     function buildStyle(style) {
         container = document.getElementById('speedo-container');
         if (!container) return;
@@ -271,6 +306,7 @@ const RSSpeedo = (function() {
                 ';--rs-danger:' + cfg.danger + ';--rs-primary-rgb:' + cfg.primaryRgb +
                 ';--rs-secondary-rgb:' + cfg.secondaryRgb + ';--rs-danger-rgb:' + cfg.dangerRgb + '">' +
                 '<div class="rs-speedo-ambient"></div>' +
+                buildMotionLayer(currentStyle) +
                 '<div class="rs-speedo-shell"></div>' +
                 '<div class="rs-speedo-watermark"><img src="assets/logo.png" alt=""></div>' +
                 '<svg class="rs-speedo-svg" viewBox="0 0 300 300" aria-hidden="true">' +
@@ -664,6 +700,22 @@ const RSSpeedo = (function() {
         elements.root.classList.toggle('rs-seatbelt-alert', !restrained && speed >= 12);
         elements.root.classList.toggle('rs-harness-active', lastData.harness === true);
         elements.root.classList.toggle('rs-mechanic-linked', lastData.mechanicLinked === true);
+        // The protected HALO / VEHICLE HUDs receive no new DOM or live visual
+        // state. Existing values, warnings, thresholds and native logic stay as-is.
+        if (MOTION_STYLES.has(currentStyle) && elements.root) {
+            const motion = elements.root.querySelector('.rs-motion');
+            if (motion) {
+                elements.root.style.setProperty('--rs-motion-speed', (pct * 100).toFixed(1) + '%');
+                elements.root.style.setProperty('--rs-motion-rpm', rpm.toFixed(1) + '%');
+                elements.root.style.setProperty('--rs-motion-fuel', fuel.toFixed(1) + '%');
+                const beacon = motion.querySelector('[data-motion-state]');
+                if (beacon) {
+                    // Ratio is speed / configured maximum, not an invented km/h value.
+                    const reading = pct >= critThreshold ? 'LIMIT' : pct >= warnThreshold ? 'PUSH' : 'CRUISE';
+                    if (beacon.textContent !== reading) beacon.textContent = reading;
+                }
+            }
+        }
         loadVehicleImage(lastData);
         updateTickLighting(pct);
     }

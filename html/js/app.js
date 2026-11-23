@@ -6,21 +6,21 @@
 (function() {
     'use strict';
 
-    const VERSION = '1.4.6';
-    const VERSION_FULL = 'V4.6';
+    const PROFILE_NAME = 'DEFAULT';
+    const BOOT_LABEL = 'HUD SYSTEM';
     const RESOURCE_NAME = 'rs-lilhudlife';
     let hudSuppressed = false;
 
     // ============================================================
-    //  BRAND THE UI WITH VERSION
+    //  BRAND THE UI WITH CLEAN HUD LABELS
     // ============================================================
     function applyBranding() {
         // NOTE: #menu-version-title is intentionally NOT set here. The menu
         // header owns its own two-line RS HUD LIFE branding markup, and writing
         // textContent to it would flatten that into a single plain string.
         const vEls = [
-            { id: 'boot-version-label', text: VERSION_FULL },
-            { id: 'menu-info-version', text: VERSION },
+            { id: 'boot-version-label', text: BOOT_LABEL },
+            { id: 'menu-info-version', text: PROFILE_NAME },
             { id: 'menu-info-resource', text: RESOURCE_NAME }
         ];
         vEls.forEach(e => {
@@ -94,7 +94,7 @@
             return;
         }
 
-        const speedoStyles = ['halo', 'vehicle', 'apex', 'classic', 'neon', 'minimal', 'turbo', 'volt', 'survival', 'cluster'];
+        const speedoStyles = ['halo', 'vehicle', 'apex', 'classic', 'neon', 'minimal', 'turbo', 'volt', 'survival', 'cluster', 'gtneedle', 'chronograph', 'muscle', 'hyperneedle', 'driftking', 'cyberneedle', 'rally', 'aviation', 'retro80s', 'touge', 'driftpro', 'driftbar', 'neonpunk', 'cyberbounce', 'hyperpulse'];
         const style = speedoStyles.includes(preview) ? preview : 'vehicle';
         if (window.RSSpeedo) {
             window.RSSpeedo.setStyle(style, true);

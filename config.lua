@@ -599,7 +599,15 @@ Config.WeaponHud = {
     ShowAmmoType = true,
     ShowReserve = true,
     HideNativeAmmo = true,
+    HideInVehicles = true, -- hide weapon panel while entering / riding in any vehicle
     UseInventoryImages = true, -- if ox_inventory has that weapon image
+    Effects = true, -- contained CSS hologram, small particles, reload effects
+    LowAmmoRatio = 0.25, -- low magazine warning (25% or fewer rounds)
+    -- Optional ox_inventory item name overrides for custom weapons; the
+    -- equipped ox_inventory weapon's own .ammo value takes precedence.
+    InventoryAmmoItems = {
+        -- ['WEAPON_MY_CUSTOM_GUN'] = 'ammo-9',
+    },
     AmmoLabelOverrides = {
         -- ['WEAPON_CARBINERIFLE'] = '5.56MM',
         -- ['WEAPON_PISTOL'] = '9MM',

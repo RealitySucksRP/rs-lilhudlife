@@ -1,0 +1,142 @@
+/* RS HUDLife 1.4.9 — add-on interactive menu layer only.
+   Does not style the in-game weapon/status/vehicle HUDs. */
+html, body { background: transparent !important; color-scheme: normal !important; }
+#menu-overlay,
+#menu-overlay[data-active-tab="layout"] {
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+#menu-overlay .menu-bg-fog,
+#menu-overlay .menu-bg-particles { display: none !important; }
+#menu-overlay .menu-container.zmenu-shell.z11-shell {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+#menu-overlay .rs-hud-fx-canvas {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 32 !important;
+    pointer-events: none !important;
+    user-select: none !important;
+    opacity: .88;
+}
+#menu-overlay.hidden .rs-hud-fx-canvas,
+html.rs-hud-suppressed .rs-hud-fx-canvas,
+#menu-overlay[data-fx="off"] .rs-hud-fx-canvas { display: none !important; }
+
+/* Hover motion only affects the inside cards, never the shell, position map,
+   minimap or any game HUD. Avoid animating drag targets and slider handles. */
+#menu-overlay .menu-section:not(.z11-map-card) {
+    --rshud-tilt-x: 0deg;
+    --rshud-tilt-y: 0deg;
+    --rshud-glow-x: 50%;
+    --rshud-glow-y: 50%;
+    position: relative;
+    transform-origin: center center;
+    backface-visibility: hidden;
+    transition: transform 190ms ease-out, filter 180ms ease-out,
+                border-color 180ms ease-out, box-shadow 180ms ease-out !important;
+}
+#menu-overlay[data-depth="medium"] .menu-section:not(.z11-map-card):hover,
+#menu-overlay[data-depth="high"] .menu-section:not(.z11-map-card):hover {
+    transform: translateY(-2px) scale(1.004) !important;
+    border-color: rgba(83, 219, 255, .30) !important;
+    box-shadow: 0 13px 24px rgba(0, 0, 0, .29),
+        inset 0 0 0 1px rgba(86, 211, 255, .07),
+        0 0 16px rgba(44, 192, 255, .09) !important;
+}
+#menu-overlay .menu-section:not(.z11-map-card)::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none !important;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 160ms ease;
+    background: radial-gradient(160px circle at var(--rshud-glow-x) var(--rshud-glow-y),
+        rgba(61, 210, 255, .16), rgba(245, 72, 191, .045) 40%, transparent 72%);
+}
+#menu-overlay[data-depth="medium"] .menu-section:not(.z11-map-card):hover::after,
+#menu-overlay[data-depth="high"] .menu-section:not(.z11-map-card):hover::after { opacity: 1; }
+#menu-overlay[data-depth="off"] .menu-section:not(.z11-map-card) {
+    transform: none !important;
+}
+
+/* Navigation and action affordances; retain existing active colors. */
+#menu-overlay :is(.menu-nav-btn, .menu-opt-btn, .menu-action-btn, .menu-btn, .z11-hud-peek) {
+    position: relative;
+    transition: transform 140ms ease-out, border-color 160ms ease-out,
+        box-shadow 160ms ease-out, filter 160ms ease-out !important;
+}
+#menu-overlay :is(.menu-nav-btn, .menu-opt-btn, .menu-action-btn, .menu-btn):hover {
+    filter: brightness(1.13);
+    box-shadow: 0 4px 14px rgba(7, 192, 255, .14),
+       inset 0 1px rgba(255, 255, 255, .06) !important;
+}
+#menu-overlay :is(.menu-opt-btn, .menu-action-btn, .menu-btn):active { transform: translateY(1px) scale(.985) !important; }
+#menu-overlay :is(.menu-nav-btn, .menu-opt-btn, .menu-action-btn, .menu-btn,
+    .z11-hud-peek, input[type="range"], input[type="checkbox"]):focus-visible {
+    outline: 2px solid #5ae8ff !important;
+    outline-offset: 2px !important;
+}
+#menu-overlay .menu-nav-btn:hover .menu-nav-icon {
+    transform: translateY(-2px) scale(1.085);
+    filter: drop-shadow(0 0 5px rgba(46, 214, 255, .65));
+}
+#menu-overlay .menu-nav-icon,
+#menu-overlay .z11-nos-bottle-wrap img {
+    transition: transform 200ms ease-out, filter 200ms ease-out !important;
+}
+#menu-overlay .z11-nos-bottle-wrap:hover img {
+    transform: translateY(-3px) scale(1.045);
+    filter: drop-shadow(0 2px 11px rgba(255, 78, 181, .30));
+}
+#menu-overlay .menu-opt-btn.active,
+#menu-overlay .menu-nav-btn.active {
+    text-shadow: 0 0 9px rgba(105, 228, 255, .35) !important;
+}
+#menu-overlay .rs-hud-fx-settings .rs-hud-fx-label {
+    margin: 12px 0 7px;
+    color: #8ce9ff;
+    font: 700 9px 'Orbitron', sans-serif;
+    letter-spacing: 1px;
+}
+#menu-overlay .rs-hud-fx-settings .rs-hud-fx-choices { display: flex !important; flex-wrap: wrap; }
+#menu-overlay .rs-hud-fx-settings .rs-hud-fx-choices .menu-opt-btn {
+    flex: 1 1 65px;
+    min-width: 55px;
+    min-height: 31px;
+}
+#menu-overlay .rs-hud-fx-settings .zmenu-note { margin: 6px 0 9px; }
+
+/* Animated click burst remains inside clicked control. */
+#menu-overlay .rs-hud-click-ring {
+    position: absolute !important;
+    width: 14px !important;
+    height: 14px !important;
+    left: var(--rshud-click-x, 50%) !important;
+    top: var(--rshud-click-y, 50%) !important;
+    border-radius: 50% !important;
+    pointer-events: none !important;
+    z-index: 9 !important;
+    background: radial-gradient(circle, rgba(168, 247, 255, .85) 0%,
+        rgba(54, 205, 255, .36) 35%, rgba(255, 74, 192, .12) 60%, transparent 72%);
+    transform: translate(-50%, -50%) scale(.25);
+    animation: rshud-click .46s ease-out forwards;
+}
+@keyframes rshud-click {
+    from { opacity: .8; transform: translate(-50%, -50%) scale(.25); }
+    to   { opacity: 0; transform: translate(-50%, -50%) scale(6.5); }
+}
+#menu-overlay[data-fx="off"] .rs-hud-click-ring { display: none !important; }
+@media (prefers-reduced-motion: reduce) {
+    #menu-overlay .rs-hud-fx-canvas, #menu-overlay .rs-hud-click-ring { display: none !important; }
+    #menu-overlay .menu-section:not(.z11-map-card):hover { transform: none !important; }
+    #menu-overlay :is(.menu-nav-btn, .menu-opt-btn, .menu-action-btn, .menu-btn):active { transform: none !important; }
+    #menu-overlay .z11-nos-bottle-wrap:hover img,
+    #menu-overlay .menu-nav-btn:hover .menu-nav-icon { transform: none !important; }
+}

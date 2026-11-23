@@ -1,0 +1,346 @@
+/* RS HUDLife 1.4.11 — functional menu-only neon themes and layout repairs.
+   Scoped to the editor; gameplay HUD colors and world transparency stay intact. */
+#menu-overlay {
+    --rs-menu-primary: #28ddff;
+    --rs-menu-secondary: #ff49bd;
+    --rs-menu-primary-rgb: 40, 221, 255;
+    --rs-menu-secondary-rgb: 255, 73, 189;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* Remove the legacy CSS-generated footer slogan underneath the real one.
+   It was the source of the doubled text in the screenshot. */
+#menu-overlay .menu-footer.zmenu-footer::before,
+#menu-overlay .menu-footer.zmenu-footer::after {
+    content: none !important;
+    display: none !important;
+    visibility: hidden !important;
+}
+#menu-overlay .menu-footer.zmenu-footer.z11-footer {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    padding: 6px 15px !important;
+    overflow: hidden !important;
+    isolation: isolate;
+}
+#menu-overlay .menu-footer .zfooter-copy {
+    display: block !important;
+    position: static !important;
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: auto !important;
+    line-height: 1.3 !important;
+    font-size: 8px !important;
+    font-weight: 700 !important;
+    letter-spacing: .9px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+    transform: none !important;
+    text-shadow: 0 0 6px rgba(var(--rs-menu-secondary-rgb), .28) !important;
+}
+#menu-overlay .menu-footer .zfooter-actions {
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto !important;
+    align-self: center !important;
+    margin-left: auto !important;
+}
+
+/* Give the RP text real line boxes instead of a forced single-line ellipsis. */
+#menu-overlay .z11-sidebar .z11-mode-card.z11-profile-card {
+    min-height: 78px !important;
+    padding: 7px 8px !important;
+    grid-template-columns: 37px minmax(0, 1fr) !important;
+    gap: 6px !important;
+    overflow: visible !important;
+    border-color: rgba(var(--rs-menu-secondary-rgb), .35) !important;
+}
+#menu-overlay .z11-profile-card .z11-mode-icon--rp {
+    width: 35px !important;
+    height: 35px !important;
+    border-color: rgba(var(--rs-menu-primary-rgb), .42) !important;
+}
+#menu-overlay .z11-profile-card .z11-mode-copy {
+    min-width: 0;
+    max-width: 100%;
+    overflow: visible;
+}
+#menu-overlay .z11-profile-card .zmode-label {
+    color: var(--z11-pink-2) !important;
+    font-size: 7.1px !important;
+    letter-spacing: .15px !important;
+    line-height: 1.25 !important;
+    overflow-wrap: normal !important;
+    white-space: normal !important;
+}
+#menu-overlay .z11-profile-card .zmode-state {
+    color: #53fac0 !important;
+    font-size: 12px !important;
+    line-height: 1.1 !important;
+}
+#menu-overlay .z11-profile-card .zmode-sub {
+    display: block !important;
+    margin-top: 3px !important;
+    color: rgba(199, 225, 240, .85) !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 6.4px !important;
+    line-height: 1.4 !important;
+    letter-spacing: 0 !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    word-break: normal !important;
+}
+#menu-overlay .z11-profile-card .rp-ring-outer { stroke: var(--rs-menu-primary) !important; }
+#menu-overlay .z11-profile-card .rp-ring-inner,
+#menu-overlay .z11-profile-card .rp-ticks { stroke: var(--rs-menu-secondary) !important; }
+
+/* Palette choices and the two native color inputs. */
+#menu-overlay .rs-theme-settings { overflow: visible !important; }
+#menu-overlay .rs-theme-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 13px;
+}
+#menu-overlay .rs-theme-preset {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    min-height: 43px;
+    padding: 7px 9px;
+    color: #cee7f7;
+    background: rgba(9, 18, 37, .85);
+    border: 1px solid rgba(123, 170, 235, .20);
+    border-radius: 5px;
+    font: 700 8px 'Orbitron', sans-serif;
+    letter-spacing: .5px;
+    transition: transform .12s ease, border-color .17s ease, background .17s ease, box-shadow .17s ease;
+}
+#menu-overlay .rs-theme-preset:hover {
+    transform: translateY(-2px);
+    color: #fff;
+    border-color: rgba(var(--rs-menu-primary-rgb), .65);
+}
+#menu-overlay .rs-theme-preset.active,
+#menu-overlay .rs-theme-preset[aria-pressed="true"] {
+    border-color: var(--rs-menu-primary);
+    color: #fff;
+    background: linear-gradient(90deg, rgba(var(--rs-menu-primary-rgb), .19), rgba(var(--rs-menu-secondary-rgb), .10));
+    box-shadow: inset 0 0 12px rgba(var(--rs-menu-primary-rgb), .11), 0 0 9px rgba(var(--rs-menu-primary-rgb), .08);
+}
+#menu-overlay .rs-theme-preset:focus-visible,
+#menu-overlay .rs-theme-picker input:focus-visible,
+#menu-overlay .rs-theme-reset:focus-visible { outline: 2px solid var(--rs-menu-primary); outline-offset: 2px; }
+#menu-overlay .rs-theme-preset-colors {
+    display: inline-flex;
+    width: 31px;
+    height: 25px;
+    flex: 0 0 31px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,.27);
+    background: linear-gradient(120deg, var(--swatch-a) 0 48%, var(--swatch-b) 52% 100%);
+    box-shadow: inset 0 0 6px rgba(255,255,255,.10), 0 0 10px rgba(0,0,0,.3);
+}
+#menu-overlay .rs-theme-custom-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 13px;
+}
+#menu-overlay .rs-theme-picker {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid rgba(127, 163, 235, .18);
+    background: rgba(5, 12, 27, .66);
+    color: #dbeeff;
+    font: 700 7px 'Orbitron', sans-serif;
+}
+#menu-overlay .rs-theme-picker > span { flex: 1 1 auto; }
+#menu-overlay .rs-theme-picker input[type=color] {
+    cursor: pointer;
+    width: 38px;
+    height: 29px;
+    flex: 0 0 38px;
+    padding: 1px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,.35);
+    background: rgba(3, 9, 20, .8);
+}
+#menu-overlay .rs-theme-picker output {
+    min-width: 57px;
+    text-align: right;
+    color: #b8d8e9;
+    font: 7px 'Share Tech Mono', monospace;
+}
+#menu-overlay .rs-theme-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 10px;
+    gap: 10px;
+    font: 700 8px 'Orbitron',sans-serif;
+    letter-spacing: 1px;
+    color: var(--rs-menu-primary);
+}
+#menu-overlay .rs-theme-reset {
+    cursor: pointer;
+    min-height: 29px;
+    padding: 5px 12px;
+    color: #f7e9fa;
+    font: 700 8px 'Orbitron',sans-serif;
+    border-radius: 5px;
+    border: 1px solid rgba(var(--rs-menu-secondary-rgb), .5);
+    background: rgba(var(--rs-menu-secondary-rgb), .13);
+}
+#menu-overlay .rs-theme-reset:hover { background: rgba(var(--rs-menu-secondary-rgb), .22); }
+#menu-overlay .rs-theme-hud-note { margin-top: 8px; }
+
+/* Dynamic color across the control deck, not just the palette swatches.
+   Override older hard-coded accents without altering gameplay HUD elements. */
+#menu-overlay .z11-sidebar .menu-nav-btn.active {
+    border-color: rgba(var(--rs-menu-primary-rgb), .70) !important;
+    box-shadow: inset 0 0 15px rgba(var(--rs-menu-primary-rgb), .14), 0 0 12px rgba(var(--rs-menu-primary-rgb), .13) !important;
+}
+#menu-overlay .z11-sidebar .menu-nav-btn::after {
+    background: linear-gradient(90deg, rgba(var(--rs-menu-primary-rgb), .12), transparent 58%, rgba(var(--rs-menu-secondary-rgb), .08)) !important;
+}
+#menu-overlay .z11-sidebar .menu-nav-btn.active .menu-nav-icon {
+    border-color: rgba(var(--rs-menu-primary-rgb), .55) !important;
+    background: rgba(var(--rs-menu-primary-rgb), .17) !important;
+}
+#menu-overlay .z11-sidebar .menu-nav-icon { border-color: rgba(var(--rs-menu-secondary-rgb), .23) !important; }
+#menu-overlay .menu-section-title::after {
+    background: linear-gradient(90deg, rgba(var(--rs-menu-primary-rgb), .42), transparent) !important;
+}
+#menu-overlay .z11-card::before {
+    background: linear-gradient(90deg, var(--rs-menu-primary), var(--rs-menu-secondary), transparent) !important;
+    box-shadow: 0 0 8px rgba(var(--rs-menu-primary-rgb), .4) !important;
+}
+#menu-overlay .menu-opt-btn.active {
+    border-color: rgba(var(--rs-menu-primary-rgb), .74) !important;
+    background: linear-gradient(180deg, rgba(var(--rs-menu-primary-rgb), .26), rgba(8, 22, 48, .91)) !important;
+    box-shadow: inset 0 0 12px rgba(var(--rs-menu-primary-rgb), .12), 0 0 8px rgba(var(--rs-menu-primary-rgb), .11) !important;
+}
+#menu-overlay .menu-opt-btn:hover { border-color: rgba(var(--rs-menu-primary-rgb), .57) !important; }
+#menu-overlay .menu-slider { background: linear-gradient(90deg, var(--rs-menu-primary), var(--rs-menu-secondary)) !important; }
+#menu-overlay .menu-slider::-webkit-slider-thumb { background: var(--rs-menu-primary) !important; }
+#menu-overlay .menu-toggle input:checked + .menu-toggle-slider { background: linear-gradient(90deg, var(--rs-menu-primary), var(--rs-menu-secondary)) !important; }
+#menu-overlay .z11-nos-card,
+#menu-overlay .z11-preview-card { border-color: rgba(var(--rs-menu-secondary-rgb), .38) !important; }
+#menu-overlay .z11-live-stage { border-color: rgba(var(--rs-menu-primary-rgb), .25) !important; }
+#menu-overlay .z11-hud-peek {
+    border-color: rgba(var(--rs-menu-secondary-rgb), .45) !important;
+    background: linear-gradient(90deg, rgba(var(--rs-menu-secondary-rgb), .12), rgba(var(--rs-menu-primary-rgb), .09)) !important;
+}
+#menu-overlay .z11-close {
+    border-color: rgba(var(--rs-menu-secondary-rgb), .39) !important;
+    background: rgba(var(--rs-menu-secondary-rgb), .14) !important;
+}
+#menu-overlay .menu-btn-secondary {
+    border-color: rgba(var(--rs-menu-secondary-rgb), .4) !important;
+    background: linear-gradient(180deg, rgba(var(--rs-menu-secondary-rgb), .17), rgba(12, 10, 27, .92)) !important;
+}
+#menu-overlay .menu-btn-primary {
+    border-color: rgba(var(--rs-menu-primary-rgb), .63) !important;
+    background: linear-gradient(90deg, rgba(var(--rs-menu-primary-rgb), .80), rgba(var(--rs-menu-secondary-rgb), .64)) !important;
+    color: #fff !important;
+    box-shadow: inset 0 0 9px rgba(255,255,255,.06), 0 0 11px rgba(var(--rs-menu-primary-rgb), .18) !important;
+}
+#menu-overlay .menu-container.zmenu-shell.z11-shell {
+    box-shadow: 0 22px 68px rgba(0,0,0,.73), 0 0 27px rgba(var(--rs-menu-primary-rgb), .16), 0 0 36px rgba(var(--rs-menu-secondary-rgb), .11) !important;
+}
+#menu-overlay .z11-mode-icon--rp { box-shadow: inset 0 0 17px rgba(var(--rs-menu-primary-rgb), .08) !important; }
+#menu-overlay .menu-section:not(.z11-map-card):hover {
+    border-color: rgba(var(--rs-menu-primary-rgb), .32) !important;
+    box-shadow: 0 13px 24px rgba(0,0,0,.29), inset 0 0 0 1px rgba(var(--rs-menu-primary-rgb), .07), 0 0 16px rgba(var(--rs-menu-primary-rgb), .13) !important;
+}
+#menu-overlay .menu-section:not(.z11-map-card)::after {
+    background: radial-gradient(160px circle at var(--rshud-glow-x, 50%) var(--rshud-glow-y, 50%), rgba(var(--rs-menu-primary-rgb), .16), rgba(var(--rs-menu-secondary-rgb), .045) 40%, transparent 72%) !important;
+}
+#menu-overlay :is(.menu-nav-btn, .menu-opt-btn, .menu-action-btn, .menu-btn, .rs-theme-preset):focus-visible {
+    outline-color: var(--rs-menu-primary) !important;
+}
+
+@media (max-width: 1280px), (max-height: 740px) {
+    #menu-overlay .z11-sidebar .z11-mode-card.z11-profile-card { min-height: 73px !important; }
+    #menu-overlay .z11-profile-card .zmode-sub { font-size: 6.1px !important; }
+}
+@media (max-width: 650px) {
+    #menu-overlay .rs-theme-preset-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    #menu-overlay .rs-theme-custom-controls { grid-template-columns: minmax(0,1fr); }
+}
+
+/* Exact sidebar-height repair: ten 36px navigation rows pushed the RP card
+   beneath the footer at 1080p and smaller. Give the card its own visible row. */
+#menu-overlay .z11-sidebar {
+    gap: 3px !important;
+    overflow: hidden !important;
+}
+#menu-overlay .z11-sidebar .menu-nav-btn {
+    min-height: 30px !important;
+    flex: 0 0 30px !important;
+    padding: 3px 7px !important;
+}
+#menu-overlay .z11-sidebar .menu-nav-icon {
+    width: 25px !important;
+    height: 25px !important;
+    font-size: 15px !important;
+}
+#menu-overlay .z11-sidebar .z11-mode-card.z11-profile-card {
+    flex: 0 0 auto !important;
+    margin-top: auto !important;
+}
+
+/* Brand, heartbeat, nav glyphs and particles follow the same active palette. */
+#menu-overlay .zmenu-brand-title .zbrand-pink {
+    color: var(--rs-menu-secondary) !important;
+    text-shadow: 0 0 8px rgba(var(--rs-menu-secondary-rgb), .42) !important;
+}
+#menu-overlay .zmenu-brand-title .zbrand-cyan {
+    color: var(--z11-cyan-2) !important;
+    text-shadow: 0 0 7px rgba(var(--rs-menu-primary-rgb), .38) !important;
+}
+#menu-overlay .z11-heart {
+    color: var(--rs-menu-secondary) !important;
+    text-shadow: 0 0 6px var(--rs-menu-secondary), 0 0 18px rgba(var(--rs-menu-secondary-rgb), .70) !important;
+}
+#menu-overlay .z11-sidebar .menu-nav-icon { color: var(--z11-pink-2) !important; }
+#menu-overlay .z11-sidebar .menu-nav-btn.active .menu-nav-icon { color: #f4faff !important; }
+#menu-overlay .menu-section-title { color: var(--z11-cyan-2) !important; }
+#menu-overlay .z11-heartbeat .z11-pulse-line { filter: drop-shadow(0 0 5px rgba(var(--rs-menu-primary-rgb), .75)); }
+
+/* Short 720–800px game windows: prevent sidebar items from pushing the RP
+   profile behind the sticky footer. Labels and icon silhouettes stay readable. */
+@media (max-height: 800px) {
+    #menu-overlay .z11-sidebar { gap: 2px !important; }
+    #menu-overlay .z11-sidebar .menu-nav-btn {
+        min-height: 25px !important;
+        flex: 0 0 25px !important;
+        padding: 2px 6px !important;
+    }
+    #menu-overlay .z11-sidebar .menu-nav-icon {
+        width: 22px !important;
+        height: 22px !important;
+        font-size: 14px !important;
+    }
+    #menu-overlay .z11-sidebar .z11-mode-card.z11-profile-card {
+        min-height: 70px !important;
+        padding: 6px !important;
+    }
+}

@@ -1,80 +1,162 @@
-/* RS HUDLife weapon overlay: bounded transparent NUI element only. */
+/* RS HUDLife v1.4.7: compact, fully transparent-game 3D weapon hologram. */
 #weapon-container {
+    --rsw-accent: #8fe6ff;
+    --rsw-soft: rgba(85, 205, 248, .35);
     position: fixed;
     z-index: 180;
     right: 3%;
     bottom: 9%;
-    width: 292px;
-    height: 126px;
+    width: 322px;
+    height: 136px;
     transform-origin: right bottom;
     color: #f4faff;
     pointer-events: none;
     font-variant-numeric: tabular-nums;
-    filter: drop-shadow(0 2px 5px rgba(0,0,0,.60));
+    perspective: 750px;
+    filter: drop-shadow(0 5px 9px rgba(0, 0, 0, .64));
 }
 #weapon-container .rsw-panel {
     position: absolute;
     inset: 0;
     display: grid;
-    grid-template-columns: 64px 100px minmax(0, 1fr);
+    grid-template-columns: 59px 137px minmax(0, 1fr);
     align-items: center;
-    background: linear-gradient(90deg, rgba(1,8,15,.45), rgba(2,10,19,.54) 50%, rgba(2,10,19,.36));
-    border: 1px solid rgba(190,225,240,.20);
-    border-radius: 10px;
-    box-shadow: inset 0 1px rgba(255,255,255,.08), inset 0 -2px 0 rgba(69,219,248,.20);
+    background: linear-gradient(110deg, rgba(4,13,25,.62), rgba(8,22,38,.66) 56%, rgba(7,22,37,.40));
+    border: 1px solid rgba(173,225,244,.30);
+    border-radius: 11px;
+    box-shadow: 0 0 13px var(--rsw-soft), inset 0 1px rgba(255,255,255,.17),
+        inset 0 -2px 0 var(--rsw-accent), inset 0 0 28px rgba(72,159,209,.08);
     overflow: hidden;
+    transform: rotateY(-4deg) rotateX(2deg) translateZ(0);
+    transform-style: preserve-3d;
+    transition: border-color .2s, box-shadow .2s, background .2s;
+}
+#weapon-container .rsw-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 7px, rgba(161,236,255,.022) 8px, transparent 9px);
+    pointer-events: none;
+}
+#weapon-container .rsw-panel::after {
+    content: '';
+    position: absolute;
+    left: -65%;
+    top: 0;
+    width: 39%;
+    height: 100%;
+    transform: skewX(-22deg);
+    background: linear-gradient(90deg, transparent, rgba(191,245,255,.13), transparent);
+    animation: rswShimmer 5s ease-in-out infinite;
+    pointer-events: none;
+}
+#weapon-container .rsw-scanline {
+    position: absolute;
+    height: 1px;
+    left: 3px;
+    right: 3px;
+    top: 28px;
+    background: linear-gradient(90deg, transparent, var(--rsw-accent), transparent);
+    opacity: .40;
+    pointer-events: none;
 }
 #weapon-container .rsw-arc {
     position: absolute;
     left: 0;
-    width: 66px;
-    height: 121px;
+    top: 6px;
+    width: 64px;
+    height: 122px;
     overflow: visible;
+    filter: drop-shadow(0 0 3px var(--rsw-accent));
 }
 #weapon-container .rsw-arc path { fill: none; stroke-width: 5; stroke-linecap: round; }
-#weapon-container .rsw-arc-track { stroke: rgba(230,247,253,.23); stroke-dasharray: 2.5 3.8; }
-#weapon-container .rsw-arc-fill { stroke: #e9f9ff; stroke-dasharray: 100 100; transition: stroke-dasharray .12s ease; }
-#weapon-container .rsw-arc-glow { stroke: rgba(0,223,255,.30); stroke-width: 10; opacity: .5; }
-#weapon-container .rsw-counter { grid-column: 2; align-self: center; z-index: 1; padding: 0 0 0 2px; }
-#weapon-container .rsw-numbers { display: flex; align-items: baseline; gap: 4px; white-space: nowrap; text-shadow: 1px 2px 1px #000; }
-#weapon-container #weapon-clip { font: 900 43px/1 'Orbitron', sans-serif; letter-spacing: -3px; -webkit-text-stroke: .55px #09131d; }
-#weapon-container #weapon-reserve { font: 800 19px/1 'Orbitron', sans-serif; color: #d6ebfa; }
-#weapon-container .rsw-rule { display: block; background: rgba(188,232,244,.80); height: 2px; width: 95%; margin: 8px 0 5px; }
-#weapon-container .rsw-ammo-type { color: #b9e8f7; font: 700 9px/1.25 'Share Tech Mono', monospace; white-space: nowrap; }
-#weapon-container .rsw-bullets { display: flex; align-items: center; gap: 2px; width: 96px; height: 9px; margin-top: 7px; overflow: hidden; }
-#weapon-container .rsw-bullets i { flex: 1 1 auto; min-width: 1px; height: 8px; background: #ecf7fa; box-shadow: 0 0 3px rgba(220,248,255,.55); border-radius: 1px; }
-#weapon-container .rsw-bullets i.spent { opacity: .20; box-shadow: none; }
-#weapon-container .rsw-weapon { grid-column: 3; min-width: 0; padding: 0 9px 0 2px; display: flex; flex-direction: column; justify-content: center; gap: 7px; z-index: 1; }
-#weapon-container .rsw-art { height: 64px; display: flex; align-items: center; justify-content: center; }
-#weapon-container .rsw-art img { max-width: 100%; max-height: 63px; object-fit: contain; filter: grayscale(1) brightness(0) invert(1); }
-#weapon-container .rsw-art svg { width: 100%; height: 60px; }
-#weapon-container #weapon-art-fallback { color: #f3faff; width: 100%; }
-#weapon-container .rsw-name { font: 700 8px/1.15 'Share Tech Mono', monospace; text-align: center; color: rgba(230,249,255,.84); letter-spacing: .55px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#weapon-container[data-empty="1"] #weapon-clip { color: #ff6f81; }
-#weapon-container[data-empty="1"] .rsw-arc-fill { stroke: #ff667d; }
-#weapon-container[data-preview="1"]::after { content: 'PREVIEW'; position: absolute; right: 7px; top: 6px; font: 7px 'Share Tech Mono', monospace; color: #60d9f0; }
-#weapon-container[data-show-ammo-type="0"] .rsw-ammo-type { display: none; }
-#weapon-container[data-show-reserve="0"] #weapon-reserve { display: none; }
-#weapon-container[data-style="minimal"] { height: 80px; width: 243px; }
-#weapon-container[data-style="minimal"] .rsw-panel { grid-template-columns: 83px 1fr; background: rgba(3,11,21,.38); }
-#weapon-container[data-style="minimal"] .rsw-arc, #weapon-container[data-style="minimal"] .rsw-bullets { display: none; }
-#weapon-container[data-style="minimal"] .rsw-counter { grid-column: 1; padding-left: 11px; }
-#weapon-container[data-style="minimal"] #weapon-clip { font-size: 30px; letter-spacing: -2px; }
-#weapon-container[data-style="minimal"] #weapon-reserve { font-size: 13px; }
-#weapon-container[data-style="minimal"] .rsw-rule { margin: 5px 0 3px; }
-#weapon-container[data-style="minimal"] .rsw-weapon { grid-column: 2; }
-#weapon-container[data-style="minimal"] .rsw-art { height: 42px; }
-#weapon-container[data-style="minimal"] .rsw-art svg { height: 39px; }
-#weapon-container[data-style="minimal"] .rsw-art img { max-height: 41px; }
+#weapon-container .rsw-arc-track { stroke: rgba(230,247,253,.17); stroke-dasharray: 2.5 3.8; }
+#weapon-container .rsw-arc-fill { stroke: var(--rsw-accent); stroke-dasharray: 100 100; transition: stroke-dasharray .17s ease, stroke .18s ease; }
+#weapon-container .rsw-arc-glow { stroke: var(--rsw-accent); stroke-width: 11; opacity: .17; }
+#weapon-container .rsw-counter { grid-column: 2; align-self: center; z-index: 2; padding: 0 2px 0 2px; transform: translateZ(10px); min-width:0; }
+#weapon-container .rsw-topline { display: flex; align-items: center; gap: 7px; font: 700 8px/1.2 'Share Tech Mono', monospace; color: rgba(215,246,255,.69); letter-spacing: .8px; white-space: nowrap; }
+#weapon-container .rsw-state-label { display:inline-block; color: var(--rsw-accent); border: 1px solid currentColor; border-radius: 3px; padding: 2px 4px; font-weight: 700; font-size: 8px; letter-spacing: .45px; text-shadow: 0 0 6px var(--rsw-accent); }
+#weapon-container .rsw-numbers { display: flex; align-items: center; gap: 6px; margin-top: 3px; white-space: nowrap; text-shadow: 1px 2px 1px #000, 0 0 10px var(--rsw-soft); }
+#weapon-container #weapon-clip { font: 900 43px/1.14 'Orbitron', sans-serif; letter-spacing: -2.5px; min-width: 1ch; color: #f1fbff; -webkit-text-stroke: .3px #09131d; }
+#weapon-container .rsw-backup { display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding: 3px 0 0 3px; border-left: 1px solid rgba(204,237,255,.27); }
+#weapon-container .rsw-backup-label { font: 700 7px/1 'Share Tech Mono', monospace; color: rgba(206,234,250,.64); letter-spacing: .7px; }
+#weapon-container #weapon-reserve { font: 800 18px/1 'Orbitron', sans-serif; color: #d9f0fc; max-width: 5ch; overflow: hidden; text-overflow: clip; }
+#weapon-container .rsw-rule { display: block; background: linear-gradient(90deg, var(--rsw-accent), transparent); height: 2px; width: 95%; margin: 5px 0 4px; opacity: .80; }
+#weapon-container .rsw-ammo-type { color: #bce8fb; font: 700 9px/1.2 'Share Tech Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#weapon-container .rsw-bullets { display: flex; align-items: center; gap: 2px; width: 122px; height: 10px; margin-top: 7px; overflow: hidden; }
+#weapon-container .rsw-bullets i { flex: 1 1 auto; min-width: 1px; height: 9px; background: var(--rsw-accent); box-shadow: 0 0 4px var(--rsw-soft); border-radius: 1px; transition: opacity .12s ease; }
+#weapon-container .rsw-bullets i.spent { opacity: .15; box-shadow: none; }
+#weapon-container .rsw-weapon { grid-column: 3; min-width: 0; padding: 0 8px 0 0; display: flex; flex-direction: column; justify-content: center; gap: 5px; z-index: 2; transform: translateZ(19px); }
+#weapon-container .rsw-art { height: 63px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 0 5px var(--rsw-soft)); }
+#weapon-container .rsw-art img { max-width: 100%; max-height: 63px; object-fit: contain; filter: grayscale(1) brightness(0) invert(1) drop-shadow(0 0 3px #8ebdcf); }
+#weapon-container .rsw-art svg { width: 100%; height: 63px; }
+#weapon-container #weapon-art-fallback { color: #eaf8ff; width: 100%; }
+#weapon-container .rsw-name { font: 700 9px/1.13 'Share Tech Mono', monospace; text-align: center; color: #dff3ff; letter-spacing: .35px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#weapon-container .rsw-hint { font: 700 7px/1.12 'Share Tech Mono', monospace; text-align:center; color: var(--rsw-accent); letter-spacing: .6px; white-space: nowrap; overflow:hidden; text-overflow:ellipsis; }
+#weapon-container .rsw-particles { position:absolute; inset: 0; z-index: 4; overflow:hidden; pointer-events:none; transform-style:preserve-3d; }
+#weapon-container .rsw-particle { position:absolute; left:var(--x); top:var(--y); width:3px; height:3px; border-radius:50%; background:var(--rsw-accent); box-shadow:0 0 4px 2px var(--rsw-soft); opacity:0; animation:rswParticle .72s ease-out var(--delay, 0ms) forwards; }
+#weapon-container .rsw-particle-shot { background: #eefaff; width:2px; height:4px; }
+#weapon-container .rsw-particle-reload { background: #82eafc; width:3px; height:6px; }
+#weapon-container .rsw-particle-swap { background: #dafaff; }
+#weapon-container.rsw-swap .rsw-art { animation:rswSwap .45s ease-out; }
+#weapon-container.rsw-load .rsw-rule { animation:rswLoad .46s ease-out; }
+#weapon-container.rsw-hit #weapon-clip { animation:rswAmmoHit .34s ease-out; }
+#weapon-container[data-state="low"],
+#weapon-container[data-state="reload"],
+#weapon-container[data-state="lastmag"] { --rsw-accent:#ffbd64; --rsw-soft:rgba(254,171,65,.28); }
+#weapon-container[data-state="reloading"],
+#weapon-container[data-state="reloaded"] { --rsw-accent:#49d6ff; --rsw-soft:rgba(35,187,255,.33); }
+#weapon-container[data-state="empty"] { --rsw-accent:#ff4d6c; --rsw-soft:rgba(255,65,103,.36); }
+#weapon-container[data-state="empty"] .rsw-panel { animation:rswEmptyPulse 1.3s ease-in-out infinite; }
+#weapon-container[data-state="reload"] .rsw-state-label { animation:rswBlink 1.1s ease-in-out infinite; }
+#weapon-container[data-state="reloading"] .rsw-bullets i { animation:rswLoadBars .68s ease-in-out infinite alternate; }
+#weapon-container[data-state="reloaded"] .rsw-state-label { color:#a0f8c9; border-color:#a0f8c9; text-shadow:0 0 8px #a0f8c9; }
+#weapon-container[data-mode="melee"] .rsw-arc,
+#weapon-container[data-mode="utility"] .rsw-arc,
+#weapon-container[data-mode="melee"] .rsw-bullets,
+#weapon-container[data-mode="utility"] .rsw-bullets,
+#weapon-container[data-mode="melee"] .rsw-backup,
+#weapon-container[data-mode="utility"] .rsw-backup,
+#weapon-container[data-mode="throwable"] .rsw-backup { display:none; }
+#weapon-container[data-mode="melee"] #weapon-clip,
+#weapon-container[data-mode="utility"] #weapon-clip { font-size:29px; color:var(--rsw-accent); }
+#weapon-container[data-preview="1"]::after { content: 'PREVIEW'; position:absolute; right:6px; top:5px; font: 7px 'Share Tech Mono', monospace; color:#b5e7fa; }
+#weapon-container[data-show-ammo-type="0"] .rsw-ammo-type { display:none; }
+#weapon-container[data-show-reserve="0"] .rsw-backup { display:none; }
+#weapon-container[data-style="minimal"] { height: 91px; width:270px; }
+#weapon-container[data-style="minimal"] .rsw-panel { grid-template-columns: 136px 1fr; transform:rotateY(-3deg); }
+#weapon-container[data-style="minimal"] .rsw-counter { grid-column:1; padding-left:11px; }
+#weapon-container[data-style="minimal"] .rsw-arc,
+#weapon-container[data-style="minimal"] .rsw-bullets { display:none; }
+#weapon-container[data-style="minimal"] .rsw-topline { font-size:7px; }
+#weapon-container[data-style="minimal"] #weapon-clip { font-size:30px; }
+#weapon-container[data-style="minimal"] #weapon-reserve { font-size:13px; }
+#weapon-container[data-style="minimal"] .rsw-rule { margin:3px 0; }
+#weapon-container[data-style="minimal"] .rsw-weapon { grid-column:2; }
+#weapon-container[data-style="minimal"] .rsw-art { height:40px; }
+#weapon-container[data-style="minimal"] .rsw-art svg { height:38px; }
+#weapon-container[data-style="minimal"] .rsw-art img { max-height:40px; }
+@keyframes rswShimmer { 0%,72% { left:-65%; } 100% { left:145%; } }
+@keyframes rswParticle { 0% { opacity:1; transform:translate3d(0,0,0) scale(1.2); } 100% { opacity:0; transform:translate3d(var(--dx),var(--dy),var(--dz)) scale(.1); } }
+@keyframes rswEmptyPulse { 0%,100% { border-color:rgba(255,79,108,.26); box-shadow:0 0 6px rgba(255,65,103,.14), inset 0 -2px 0 #ff4d6c; } 50% { border-color:rgba(255,91,122,.9); box-shadow:0 0 21px rgba(255,65,103,.56), inset 0 0 14px rgba(255,65,103,.17); } }
+@keyframes rswBlink { 0%,100% { opacity:1; } 50% { opacity:.42; } }
+@keyframes rswLoadBars { from { opacity:.30; filter:brightness(.8); } to { opacity:1; filter:brightness(1.7); } }
+@keyframes rswSwap { 0% { opacity:.15; transform:translateX(15px) translateZ(-15px) rotateY(19deg); } 100% { opacity:1; transform:translateX(0) translateZ(0) rotateY(0); } }
+@keyframes rswLoad { 0% { width:0; opacity:.2; } 100% { width:95%; opacity:.8; } }
+@keyframes rswAmmoHit { 0% { transform:translateY(3px) scale(.96); opacity:.63; } 100% { transform:none; opacity:1; } }
+@media (prefers-reduced-motion: reduce) {
+    #weapon-container .rsw-panel, #weapon-container .rsw-state-label, #weapon-container .rsw-bullets i,
+    #weapon-container .rsw-particle, #weapon-container .rsw-panel::after,
+    #weapon-container .rsw-rule, #weapon-container .rsw-art, #weapon-container #weapon-clip { animation:none !important; transition:none !important; }
+    #weapon-container .rsw-particles { display:none; }
+}
 html.rs-hud-suppressed #weapon-container { display:none !important; visibility:hidden !important; }
-/* The editor itself is opaque only within its normal compact cards. */
+/* Preserve invisible CEF page while allowing opaque styling only INSIDE compact panels. */
+html, body, #menu-overlay, #menu-overlay[data-active-tab="layout"], #menu-overlay.hud-peek {
+    background:transparent !important;
+    color-scheme: normal;
+}
 #menu-overlay .zmap-chip.zc-weapon { color: #baffef !important; }
 #menu-overlay .rsw-config-preview { display:flex; gap:9px; align-items:center; margin:8px 0; color:rgba(210,241,248,.86); font-size:10px; }
 #menu-overlay .rsw-config-preview strong { color:#a9ecff; }
 #menu-overlay .rsw-option-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
-
-/* Gameplay stays fully visible behind the menu, including when editing. */
-html, body, #menu-overlay, #menu-overlay[data-active-tab="layout"], #menu-overlay.hud-peek {
-    background: transparent !important;
-    color-scheme: normal;
-}
